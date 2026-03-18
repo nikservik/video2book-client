@@ -29,7 +29,7 @@
 | Dev/build | `electron-vite` | самый простой способ вести main, preload и renderer в одном Vite-пайплайне |
 | Packaging | `electron-builder` | удобная упаковка DMG/NSIS и `extraResources` для бинарников |
 | UI | `vue@3` + Composition API + `<script setup lang="ts">` | прямо соответствует UI-спеке |
-| Router | `vue-router@4` | нужны только 2 маршрута, роутер достаточно лёгкий |
+| Router | `vue-router@5` | нужны только 2 маршрута, роутер достаточно лёгкий |
 | Styling | `tailwindcss@4` + `@tailwindcss/vite` | соответствует UI-спеке и текущему стеку |
 | API types | `openapi-typescript` | генерирует типы из локального `docs/client-api.yaml` без тяжёлого codegen |
 | API client | `openapi-fetch` | тонкая typed-обёртка над `fetch`, без лишнего runtime |
@@ -526,7 +526,7 @@ UI-спека уже предполагает обычный `<input type="file"
 | Type safety | `typescript` + `vue-tsc` | ранний отлов ошибок типов и SFC-контрактов |
 | Unit / service integration | `vitest` + `@vitest/coverage-v8` | быстрые локальные тесты для `main`, `preload`, `shared`, очереди и media-сервисов |
 | Vue component tests | `@vue/test-utils` + `vitest` | тестирование SFC и composables на уровне компонентов |
-| Browser-fidelity renderer tests | `vitest` Browser Mode + `@vitest/browser-playwright` | реальные DOM-события, focus-management, dropdown/modal сценарии |
+| Browser-fidelity renderer tests | `vitest` Browser Mode + `@vitest/browser-playwright` в `Chromium only` | быстрые проверки renderer в реальном DOM-окружении, близком к Electron |
 | Desktop E2E | `@playwright/test` + Electron automation (`playwright` `_electron`) | запуск настоящего Electron-приложения и проверка сквозных сценариев |
 | API mock / contract | `@stoplight/prism-cli` | локальный mock server и проверка соответствия клиента OpenAPI-спеке |
 | In-process API mocking | `msw` | детерминированные unit/integration тесты без отдельного сервера |
@@ -536,6 +536,8 @@ UI-спека уже предполагает обычный `<input type="file"
 - `vitest` рекомендован Vue для Vite-проектов и хорошо подходит для нашей TS/Vue структуры.
 - `@vue/test-utils` — официальная библиотека тестирования компонентов Vue 3.
 - `vitest` Browser Mode нужен не вместо обычных component-тестов, а как второй слой для мест, где `jsdom` недостаточно надёжен: dropdown, keyboard navigation, focus trap, mobile actions panel, theme switching.
+- browser-fidelity слой не является cross-browser matrix. Для этого проекта он запускается только в `Chromium`, потому что production renderer живёт внутри Electron/Chromium.
+- `Firefox` и `WebKit` не считаются обязательной частью локального тестового контура v1.
 - `Playwright` даёт два важных режима сразу:
   - automation реального Electron-приложения;
   - trace/screenshot tooling для локальной отладки падений.
@@ -592,7 +594,7 @@ UI-спека уже предполагает обычный `<input type="file"
 
 #### Browser-fidelity tests
 
-`vitest` Browser Mode + Playwright provider:
+`vitest` Browser Mode + Playwright provider, только `Chromium`:
 
 - dropdown sorting;
 - `PipelineVersionDropdown`;

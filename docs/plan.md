@@ -10,6 +10,7 @@
 
 - стек: Electron + `electron-vite` + Vue 3 + Vue Router + Tailwind CSS 4 + `electron-builder`;
 - тестовый стек: `vitest` + `@vue/test-utils` + `vitest` Browser Mode + Playwright + Prism + MSW;
+- browser-fidelity слой запускается только в `Chromium`;
 - renderer без `Pinia`;
 - сеть только из main process;
 - настройки сервера и токен только в main process;
@@ -96,6 +97,7 @@
   - `vitest` projects для `node`, `component`, `browser`;
   - coverage через `@vitest/coverage-v8`;
   - Playwright config для Electron E2E и trace/screenshot artifacts;
+  - для browser-fidelity используем только `Chromium`, без `Firefox/WebKit`;
   - Prism command для `docs/client-api.yaml`;
   - общие test fixtures и helpers;
 - добавляем базовые `pnpm`-скрипты:
@@ -455,7 +457,7 @@
 - component:
   - `@vue/test-utils` + `vitest`
 - browser-fidelity:
-  - `vitest` Browser Mode + Playwright provider
+  - `vitest` Browser Mode + Playwright provider (`Chromium` only)
 - desktop E2E:
   - `@playwright/test` + Electron launch
 - contract:

@@ -1,0 +1,100 @@
+{
+  "name": "video2book-client",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Desktop client for Video2Book.",
+  "type": "module",
+  "main": "dist-electron/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "pnpm run build:icons && pnpm run typecheck && electron-vite build",
+    "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.app.json",
+    "generate:openapi": "node --import tsx scripts/generate-openapi.ts",
+    "prepare:binaries": "node --import tsx scripts/prepare-binaries.ts",
+    "build:icons": "node --import tsx scripts/build-icons.ts",
+    "test": "pnpm run test:unit && pnpm run test:integration && pnpm run test:component && pnpm run test:contract",
+    "test:watch": "vitest",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:component": "vitest run --project component",
+    "test:browser": "vitest run --project browser",
+    "test:e2e": "pnpm run build && playwright test --config tests/e2e/playwright.config.ts",
+    "test:contract": "node --import tsx tests/contract/prism-smoke.ts",
+    "test:all": "pnpm run typecheck && pnpm run test && pnpm run test:browser && pnpm run test:e2e",
+    "test:smoke:youtube": "node -e \"console.log('yt-dlp live smoke is not implemented in phase 1')\"",
+    "dist:mac:x64": "pnpm run build && electron-builder --mac dmg zip --x64",
+    "dist:mac:arm64": "pnpm run build && electron-builder --mac dmg zip --arm64",
+    "dist:win:x64": "pnpm run build && electron-builder --win nsis --x64"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0",
+    "vue": "3.5.30",
+    "vue-router": "^5.0.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "@stoplight/prism-cli": "5.14.2",
+    "@tailwindcss/vite": "4.2.2",
+    "@types/node": "^25.5.0",
+    "@vitejs/plugin-vue": "6.0.5",
+    "@vitest/browser-playwright": "4.1.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "@vue/test-utils": "2.4.6",
+    "electron": "^41.0.3",
+    "electron-builder": "26.8.1",
+    "electron-vite": "^5.0.0",
+    "jsdom": "^29.0.0",
+    "msw": "2.12.13",
+    "openapi-typescript": "7.13.0",
+    "playwright": "1.58.2",
+    "tailwindcss": "4.2.2",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.1.0",
+    "vue-tsc": "^3.2.6"
+  },
+  "build": {
+    "appId": "com.video2book.client",
+    "productName": "Video2Book",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "icon": "build/icons/mac/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "build/icons/win/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

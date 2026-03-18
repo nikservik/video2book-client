@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-electron
+release
+coverage
+playwright-report
+test-results
+.vitest
+build/bin
+.DS_Store
