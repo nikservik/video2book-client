@@ -21,7 +21,7 @@
     "test:component": "vitest run --project component",
     "test:browser": "vitest run --project browser",
     "test:e2e": "pnpm run build && playwright test --config tests/e2e/playwright.config.ts",
-    "test:contract": "node --import tsx tests/contract/prism-smoke.ts",
+    "test:contract": "vitest run --project contract",
     "test:all": "pnpm run typecheck && pnpm run test && pnpm run test:browser && pnpm run test:e2e",
     "test:smoke:youtube": "node -e \"console.log('yt-dlp live smoke is not implemented in phase 1')\"",
     "dist:mac:x64": "pnpm run build && electron-builder --mac dmg zip --x64",

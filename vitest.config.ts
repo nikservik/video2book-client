@@ -48,6 +48,16 @@ export default defineConfig({
         },
       },
       {
+        resolve: {
+          alias: aliases,
+        },
+        test: {
+          name: "contract",
+          environment: "node",
+          include: ["tests/contract/**/*.test.ts"],
+        },
+      },
+      {
         plugins: [vue()],
         resolve: {
           alias: aliases,
