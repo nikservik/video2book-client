@@ -9,6 +9,7 @@
 Перед стартом считаем принятым следующее:
 
 - стек: Electron + `electron-vite` + Vue 3 + Vue Router + Tailwind CSS 4 + `electron-builder`;
+- тестовый стек: `vitest` + `@vue/test-utils` + `vitest` Browser Mode + Playwright + Prism + MSW;
 - renderer без `Pinia`;
 - сеть только из main process;
 - настройки сервера и токен только в main process;
@@ -17,6 +18,7 @@
 - все внешние утилиты пакуются внутрь приложения;
 - `yt-dlp` запускается только вместе с bundled `deno`;
 - локально произведённый аудиофайл всегда приводится к MP3;
+- все основные тесты должны запускаться локально без CI;
 - production release только с signing/notarization;
 - v1 без auto-update.
 
@@ -63,21 +65,56 @@
   - `openapi-fetch`
   - `openapi-typescript`
   - `vitest`
+  - `@vitest/coverage-v8`
+  - `@vitest/browser-playwright`
   - `@vue/test-utils`
   - `jsdom`
+  - `@playwright/test`
+  - `playwright`
+  - `msw`
+  - `@stoplight/prism-cli`
 - создаём структуру:
   - `electron/main`
   - `electron/preload`
   - `electron/shared`
   - `src/...` по `docs/client-ui.md`
+  - `tests/unit`
+  - `tests/integration`
+  - `tests/component`
+  - `tests/browser`
+  - `tests/e2e`
+  - `tests/contract`
+  - `tests/fixtures/media`
+- фиксируем использование уже подготовленных иконок из `build/icons`:
+  - `build/icons/icon.png` как базовый source asset;
+  - `build/icons/mac/icon.icns` для macOS;
+  - `build/icons/win/icon.ico` для Windows;
+- если исходная иконка меняется, регенерация набора идёт через `pnpm build:icons`;
 - настраиваем `electron.vite.config.ts` так, чтобы renderer root был именно `src`, а не альтернативная структура;
 - настраиваем `contextIsolation: true`, `nodeIntegration: false`;
+- настраиваем тестовый фундамент сразу:
+  - `vitest` projects для `node`, `component`, `browser`;
+  - coverage через `@vitest/coverage-v8`;
+  - Playwright config для Electron E2E и trace/screenshot artifacts;
+  - Prism command для `docs/client-api.yaml`;
+  - общие test fixtures и helpers;
 - добавляем базовые `pnpm`-скрипты:
   - `dev`
   - `build`
   - `typecheck`
   - `generate:openapi`
   - `prepare:binaries`
+  - `build:icons`
+  - `test`
+  - `test:watch`
+  - `test:unit`
+  - `test:integration`
+  - `test:component`
+  - `test:browser`
+  - `test:e2e`
+  - `test:contract`
+  - `test:all`
+  - `test:smoke:youtube`
   - `dist:mac:x64`
   - `dist:mac:arm64`
   - `dist:win:x64`
@@ -87,6 +124,12 @@
 - `pnpm dev` открывает пустое окно приложения;
 - renderer собирается через Vite;
 - main и preload собираются отдельно;
+- локально запускается пустой smoke-test в каждом тестовом слое:
+  - `vitest` node;
+  - `vitest` component;
+  - `vitest` browser;
+  - `playwright` electron;
+  - `prism` mock server;
 - `pnpm build` проходит без ошибок.
 
 ## 5. Фаза 2. Полное воспроизведение UI на mock data
@@ -136,12 +179,14 @@
   - project lessons -> `ProjectScreenData` (`project` + `pipelineVersions`);
   - created lesson -> UI lesson;
 - отдельно создаём IPC DTO для renderer, чтобы renderer не импортировал низкоуровневые OpenAPI-ответы.
+- добавляем contract-тесты, которые проверяют client mapping поверх актуальной OpenAPI-схемы и `Prism mock`.
 
 ### Definition of done
 
 - `pnpm generate:openapi` детерминированно обновляет типы;
 - main process умеет типобезопасно вызывать все текущие endpoint’ы из OpenAPI;
 - все преобразования API -> UI лежат в одном месте.
+- `test:contract` локально подтверждает, что базовые клиентские запросы и маппинг совместимы со спецификацией.
 
 ## 7. Фаза 4. Settings dialog и secure config
 
@@ -183,6 +228,7 @@
 - source link показываем на основании `lesson.source_url`;
 - dropdown версий шаблонов наполняем из `data.pipeline_versions`;
 - все запросы идут через main -> preload -> renderer.
+- добавляем локальные read-only desktop E2E against `Prism mock`.
 
 ### Definition of done
 
@@ -190,6 +236,7 @@
 - список уроков проекта открывается на реальных данных;
 - страница проекта получает pipeline options без отдельного запроса;
 - renderer не знает token и не делает прямых HTTP-запросов.
+- read-only happy path проходит локально в desktop E2E.
 
 ## 9. Фаза 6. Управление бинарниками и runtime-путями
 
@@ -211,12 +258,14 @@
 - фиксируем единый способ запуска `yt-dlp`: только с `--js-runtimes deno:<bundled-path>`;
 - настраиваем `electron-builder.extraResources` на копирование `build/bin` в packaged `resources/bin`;
 - пишем `BinaryResolver`, который умеет одинаково работать в dev и packaged mode.
+- добавляем локальные тесты на `BinaryResolver` и на наличие обязательных бинарников в dev/build сценариях.
 
 ### Definition of done
 
 - в dev режиме main process находит все 4 бинарника;
 - в packaged app пути идут через `process.resourcesPath/bin`;
 - приложение не зависит от системного PATH пользователя.
+- тесты на резолвинг бинарников проходят локально.
 
 ## 10. Фаза 7. Persistent queue и media services
 
@@ -246,12 +295,18 @@
   - youtube -> yt-dlp audio-only -> mp3 -> upload;
 - валидируем итоговый аудиофайл на лимит 500 MB перед upload;
 - сохраняем `stderr.log` в workspace job.
+- покрываем это локальными integration-тестами:
+  - реальные маленькие audio/video fixtures;
+  - temp workspace в файловой системе;
+  - mocked `yt-dlp` по умолчанию;
+  - отдельный manual live smoke для `yt-dlp`.
 
 ### Definition of done
 
 - можно enqueue локальную или YouTube-задачу без UI;
 - runner последовательно обрабатывает задания;
 - после перезапуска приложения незавершённые задания возвращаются в `queued` и продолжаются.
+- queue/media integration suite проходит локально без ручных действий.
 
 ## 11. Фаза 8. Интеграция модалок с очередью
 
@@ -273,12 +328,17 @@
   - создаём пачку queue jobs;
 - добавляем user-friendly ошибки парсинга и валидации до enqueue;
 - на каждый enqueue закрываем модалку и сразу обновляем локальный queue snapshot.
+- добавляем:
+  - component tests для трёх модалок;
+  - browser-fidelity tests для keyboard/focus/dropdown поведения.
+  - desktop E2E на stateful fixture server для create/enqueue happy path.
 
 ### Definition of done
 
 - все 3 модалки создают реальные задания;
 - ни одна из модалок не делает прямой upload из renderer;
 - batch YouTube создаёт несколько отдельных job в одной очереди.
+- modal suites проходят локально и стабильно.
 
 ## 12. Фаза 9. Мерж очереди с уроками в UI
 
@@ -300,12 +360,14 @@
 - после успешного upload:
   - заменяем placeholder реальным уроком;
   - запускаем фоновый refresh проекта.
+- добавляем component и desktop E2E тесты на merge реальных и локальных уроков.
 
 ### Definition of done
 
 - новый урок виден сразу после enqueue;
 - после успешного создания placeholder исчезает и заменяется реальным уроком;
 - после failure пользователь видит ошибочное состояние строки.
+- merge-поведение подтверждено автоматическими локальными тестами.
 
 ## 13. Фаза 10. Recovery, edge cases и polish
 
@@ -327,12 +389,19 @@
 - для failed job оставляем workspace до явного cleanup;
 - для completed job удаляем временные файлы;
 - добавляем простую ручку cleanup stale data при запуске.
+- добавляем fault-injection tests:
+  - сбой процесса на `download`;
+  - сбой на `transcode`;
+  - сбой на `upload`;
+  - рестарт приложения между стадиями.
+  - stateful fixture server сценарии с изменяемым ответом после `POST`.
 
 ### Definition of done
 
 - очередь не теряется после аварийного закрытия;
 - пользователь получает понятную ошибку, а не “тихий” сбой;
 - временные директории не разрастаются бесконтрольно.
+- recovery suite локально воспроизводит и подтверждает все ключевые failure modes.
 
 ## 14. Фаза 11. Packaging, signing и installer UX
 
@@ -346,7 +415,10 @@
   - `mac` targets: `dmg`, `zip`
   - `win` target: `nsis`
   - `extraResources` -> `build/bin`;
-- настраиваем release icons, app metadata, product name;
+- настраиваем release icons, app metadata, product name:
+  - macOS icon -> `build/icons/mac/icon.icns`
+  - Windows icon -> `build/icons/win/icon.ico`
+  - dev/base app icon -> `build/icons/icon.png`
 - включаем signing:
   - macOS Developer ID + notarization;
   - Windows code signing certificate;
@@ -355,28 +427,72 @@
   - `macos-latest` x64/arm64 отдельными job;
   - `windows-latest` x64 отдельной job;
 - build всегда идёт после чистого `pnpm install --frozen-lockfile`.
+- добавляем локальный packaged smoke:
+  - build приложения;
+  - запуск packaged binary;
+  - проверка icons/resources/bin;
+  - минимальный Playwright/Electron smoke на packaged app.
 
 ### Definition of done
 
 - packaged app на чистой машине находит и запускает bundled binaries;
+- packaged app и инсталляторы используют иконки из `build/icons`, а не дефолтные Electron assets;
 - пользователю не требуется ставить `ffmpeg`, `yt-dlp` или `deno`;
 - установка не вызывает лишних platform security warnings сверх неизбежных для неподписанной dev-сборки.
+- packaged smoke локально воспроизводим и документирован.
 
 ## 15. Фаза 12. Финальная проверка
 
 ### Автотесты
 
-Минимально обязательно:
+Обязательный локальный набор:
 
-- test stack: `vitest` + `@vue/test-utils` + `jsdom`;
+- type gates:
+  - `tsc --noEmit`
+  - `vue-tsc --noEmit`
+- unit/integration:
+  - `vitest` + `@vitest/coverage-v8`
+- component:
+  - `@vue/test-utils` + `vitest`
+- browser-fidelity:
+  - `vitest` Browser Mode + Playwright provider
+- desktop E2E:
+  - `@playwright/test` + Electron launch
+- contract:
+  - `Prism` mock/proxy against `docs/client-api.yaml`
+- in-process mocking:
+  - `msw`
+- stateful desktop backend for write/recovery E2E:
+  - маленький fixture server с изменяемым состоянием
+- debug tooling:
+  - Playwright traces
+  - Playwright screenshots
+  - local HTML/coverage reports
+
+Минимально обязательно покрыть:
+
 - unit tests для:
   - parser списка YouTube-уроков;
   - mapper’ов API -> UI;
   - queue state transitions;
   - recovery logic;
+- integration tests для:
+  - queue repository;
+  - media conversion на маленьких fixtures;
+  - upload retries;
+  - binary resolver;
 - component tests для:
   - трёх модалок;
   - project lessons merge logic.
+- browser-fidelity tests для:
+  - dropdown;
+  - modal keyboard/focus;
+  - mobile actions panel;
+- desktop E2E для:
+  - settings flow;
+  - projects -> project navigation;
+  - enqueue и placeholder lessons;
+  - restart recovery.
 
 ### Ручной smoke checklist
 
@@ -392,6 +508,9 @@
 8. Добавление локального MP4.
 9. Падение/закрытие приложения во время очереди и последующее восстановление.
 10. Установка на чистую машину без глобальных `ffmpeg`/`yt-dlp`.
+11. Проверка, что app icon и installer icon корректно отображаются на macOS и Windows.
+12. Локальный запуск `test:all` без CI.
+13. Просмотр trace/report для упавшего E2E сценария.
 
 ### Definition of done
 
@@ -399,6 +518,7 @@
   - macOS arm64
   - macOS x64
   - Windows x64
+- локальный `test:all` воспроизводимо запускается на машине разработчика;
 - UI соответствует `docs/client-ui.md`;
 - вся функциональность укладывается в 2 view;
 - очередь восстанавливается после перезапуска;

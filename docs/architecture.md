@@ -507,7 +507,149 @@ UI-спека уже предполагает обычный `<input type="file"
 - проверить требования по распространению FFmpeg-сборок;
 - не выпускать публичный installer без этого шага.
 
-## 16. Что остаётся вне scope v1
+## 16. Локальная стратегия тестирования
+
+Тестирование для этого проекта должно быть local-first: вся основная проверка запускается на машине разработчика, без зависимости от CI или GitHub Actions.
+
+### 16.1 Базовые принципы
+
+- тестовый стек настраивается в самом начале проекта, а не в конце;
+- быстрые тесты должны запускаться постоянно в watch-режиме;
+- тяжёлые desktop и packaging smoke-тесты запускаются отдельными командами локально;
+- одна и та же логика должна покрываться на нескольких уровнях только там, где это оправдано риском;
+- network mocking для Electron E2E не должен опираться на browser-side interception, потому что API у нас вызывается из `main process`.
+
+### 16.2 Рекомендуемый стек
+
+| Зона | Инструмент | Роль |
+| --- | --- | --- |
+| Type safety | `typescript` + `vue-tsc` | ранний отлов ошибок типов и SFC-контрактов |
+| Unit / service integration | `vitest` + `@vitest/coverage-v8` | быстрые локальные тесты для `main`, `preload`, `shared`, очереди и media-сервисов |
+| Vue component tests | `@vue/test-utils` + `vitest` | тестирование SFC и composables на уровне компонентов |
+| Browser-fidelity renderer tests | `vitest` Browser Mode + `@vitest/browser-playwright` | реальные DOM-события, focus-management, dropdown/modal сценарии |
+| Desktop E2E | `@playwright/test` + Electron automation (`playwright` `_electron`) | запуск настоящего Electron-приложения и проверка сквозных сценариев |
+| API mock / contract | `@stoplight/prism-cli` | локальный mock server и проверка соответствия клиента OpenAPI-спеке |
+| In-process API mocking | `msw` | детерминированные unit/integration тесты без отдельного сервера |
+
+### 16.3 Почему именно такой набор
+
+- `vitest` рекомендован Vue для Vite-проектов и хорошо подходит для нашей TS/Vue структуры.
+- `@vue/test-utils` — официальная библиотека тестирования компонентов Vue 3.
+- `vitest` Browser Mode нужен не вместо обычных component-тестов, а как второй слой для мест, где `jsdom` недостаточно надёжен: dropdown, keyboard navigation, focus trap, mobile actions panel, theme switching.
+- `Playwright` даёт два важных режима сразу:
+  - automation реального Electron-приложения;
+  - trace/screenshot tooling для локальной отладки падений.
+- `Prism` особенно полезен именно в этом проекте, потому что у нас уже есть `docs/client-api.yaml` и можно поднимать mock/validation proxy прямо из OpenAPI.
+- `msw` нужен для быстрого изолированного тестирования `main`-сервисов без отдельного процесса сервера.
+
+### 16.4 Что и чем покрываем
+
+#### Type-level checks
+
+- `tsc --noEmit` для `electron/**` и shared-кода;
+- `vue-tsc --noEmit` для Vue SFC.
+
+Это не заменяет runtime-тесты, но должно быть обязательным локальным quality gate.
+
+#### Unit tests
+
+`vitest` в Node environment:
+
+- parser списка YouTube-уроков;
+- API mappers;
+- queue state transitions;
+- recovery logic;
+- config encryption/decryption wrappers;
+- binary path resolution;
+- preload DTO validation.
+
+#### Service integration tests
+
+`vitest` в Node environment + temp directories + реальные маленькие fixtures:
+
+- queue repository на реальной файловой системе;
+- atomic writes и восстановление `state.json`;
+- `ffprobe`/`ffmpeg` на коротких тестовых аудио/видео;
+- upload flow против локального fixture HTTP server;
+- валидация лимита 500 MB;
+- повтор после падения на стадиях `download/transcode/upload`.
+
+Правило для `yt-dlp`:
+
+- в обычной suite тестируем orchestration и обработку stdout/stderr через mocks/spies;
+- отдельный live smoke с реальным `yt-dlp` и публичным URL делаем opt-in локальной командой, не частью дефолтного `test`.
+
+#### Vue component tests
+
+`@vue/test-utils` + `vitest`:
+
+- три модалки;
+- `ProjectsFoldersList`;
+- `ProjectLessonsList`;
+- `ProjectActionsPanel`;
+- composables вроде `useTheme`;
+- merge логика placeholder lessons и реальных уроков.
+
+#### Browser-fidelity tests
+
+`vitest` Browser Mode + Playwright provider:
+
+- dropdown sorting;
+- `PipelineVersionDropdown`;
+- modal keyboard interaction;
+- focus return после закрытия модалки;
+- mobile actions panel;
+- светлая/тёмная тема в реальном браузерном окружении.
+
+#### Desktop E2E tests
+
+`Playwright` с запуском Electron:
+
+- первый запуск и settings flow;
+- загрузка проектов;
+- переход в проект;
+- enqueue YouTube/local jobs;
+- отображение placeholder lessons;
+- восстановление очереди после рестарта;
+- открытие внешнего source link;
+- packaged app smoke.
+
+### 16.5 Mocking strategy
+
+Это критично:
+
+- для `vitest` unit/integration используем `msw` или `vi.mock`;
+- для Electron E2E используем не browser route mocking, а отдельный локальный HTTP endpoint;
+- здесь решение уже принято и оно двухслойное, а не альтернативное:
+  - `Prism mock` используем для contract-тестов и read-only/spec-driven E2E сценариев;
+  - маленький stateful fixture server используем для сценариев, где ответ должен меняться после `POST`, для очереди, retry и recovery.
+
+Причина: запросы к API уходят из `main process`, и `page.route()` их не увидит.
+
+### 16.6 Visual and debug tooling
+
+Для локальной отладки должны быть включены:
+
+- `Playwright` traces;
+- `Playwright` screenshots для ключевых экранов;
+- локальные HTML/trace reports;
+- coverage report от `vitest`.
+
+Visual snapshot tests нужно применять точечно:
+
+- для `/projects`;
+- для `/projects/:projectId`;
+- для основных модалок.
+
+Не нужно превращать весь UI в screenshot-only suite.
+
+### 16.7 Инструменты, которые не выбираем как основу
+
+- `Spectron` не используем: проект deprecated командой Electron.
+- `Cypress` не выбираем как основной E2E-инструмент: для веб-приложений он хорош, но у нас desktop Electron-app с важной логикой в `main process`.
+- `WebdriverIO Electron Service` оставляем как запасной вариант, если в будущем упрёмся в ограничения Playwright Electron automation. Сейчас он не нужен как primary choice.
+
+## 17. Что остаётся вне scope v1
 
 - auto-update приложения;
 - изменение/удаление задач из очереди;
@@ -517,7 +659,7 @@ UI-спека уже предполагает обычный `<input type="file"
 - дополнительные view сверх двух обязательных;
 - любые UI-отклонения от `docs/client-ui.md`, кроме settings dialog.
 
-## 17. Итоговая архитектурная схема
+## 18. Итоговая архитектурная схема
 
 ```mermaid
 flowchart LR
@@ -532,18 +674,34 @@ flowchart LR
   M --> S["safeStorage + config.json"]
 ```
 
-## 18. Источники выбора
+## 19. Источники выбора
 
 - [Electron `safeStorage`](https://www.electronjs.org/docs/latest/api/safe-storage)
 - [Electron `webUtils.getPathForFile`](https://www.electronjs.org/docs/latest/api/web-utils)
+- [Electron testing guidance](https://www.electronjs.org/docs/latest/development/testing)
+- [Spectron deprecation notice](https://www.electronjs.org/blog/spectron-deprecation-notice)
 - [electron-vite features](https://electron-vite.org/guide/features)
 - [electron-builder overview](https://www.electron.build/)
 - [electron-builder `extraResources`](https://www.electron.build/contents.html)
 - [electron-builder macOS signing](https://www.electron.build/code-signing-mac.html)
 - [electron-builder Windows signing](https://www.electron.build/code-signing-win.html)
 - [Tailwind CSS v4 + Vite plugin](https://tailwindcss.com/docs/installation/framework-guides/laravel/vite)
+- [Vue testing guide](https://vuejs.org/guide/scaling-up/testing.html)
+- [Vue Test Utils](https://test-utils.vuejs.org/)
 - [openapi-typescript](https://openapi-ts.dev/introduction)
 - [openapi-fetch](https://openapi-ts.dev/openapi-fetch/)
+- [Vitest getting started](https://vitest.dev/guide/)
+- [Vitest test projects](https://vitest.dev/guide/projects.html)
+- [Vitest Browser Mode](https://vitest.dev/guide/browser/)
+- [Vitest coverage](https://vitest.dev/guide/coverage.html)
+- [Vitest mocking](https://vitest.dev/guide/mocking)
+- [Playwright Electron automation](https://playwright.dev/docs/api/class-electron)
+- [Playwright API testing](https://playwright.dev/docs/api-testing)
+- [Playwright mock APIs](https://playwright.dev/docs/mock)
+- [Playwright visual comparisons](https://playwright.dev/docs/test-snapshots)
+- [Playwright trace viewer](https://playwright.dev/docs/trace-viewer-intro)
+- [Prism overview](https://github.com/stoplightio/prism)
+- [MSW docs](https://mswjs.io/)
 - [ffmpeg-ffprobe-static](https://www.npmjs.com/package/ffmpeg-ffprobe-static)
 - [yt-dlp-wrap](https://github.com/foxesdocode/yt-dlp-wrap)
 - [yt-dlp: external JS runtime announcement](https://github.com/yt-dlp/yt-dlp/issues/15012)
