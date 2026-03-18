@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, shell } from "electron";
 import { APP_NAME } from "../shared/dto/ipc";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,6 +31,24 @@ function resolveWindowIcon(): string | undefined {
   return existsSync(iconPath) ? iconPath : undefined;
 }
 
+function isExternalHttpUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+
+    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function openExternalUrl(url: string): void {
+  if (!isExternalHttpUrl(url)) {
+    return;
+  }
+
+  void shell.openExternal(url);
+}
+
 function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -50,6 +68,29 @@ function createMainWindow(): BrowserWindow {
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isExternalHttpUrl(url)) {
+      openExternalUrl(url);
+
+      return {
+        action: "deny",
+      };
+    }
+
+    return {
+      action: "allow",
+    };
+  });
+
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!isExternalHttpUrl(url)) {
+      return;
+    }
+
+    event.preventDefault();
+    openExternalUrl(url);
   });
 
   if (process.env.ELECTRON_RENDERER_URL) {

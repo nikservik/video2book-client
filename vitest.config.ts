@@ -13,6 +13,9 @@ const aliases = {
 };
 
 export default defineConfig({
+  optimizeDeps: {
+    include: ["vue-router"],
+  },
   resolve: {
     alias: aliases,
   },

@@ -174,7 +174,7 @@ scripts/
 В main process живёт всё, что связано с:
 
 - сетью к удалённому API;
-- токеном и URL сервера;
+- токеном и compile-time base URL API;
 - файловой системой;
 - запуском `yt-dlp`, `ffmpeg`, `ffprobe`, `deno`;
 - очередью и восстановлением после падения;
@@ -195,8 +195,7 @@ Renderer отвечает только за:
 Preload даёт тонкий типизированный bridge:
 
 - `settings.get()`
-- `settings.save()`
-- `settings.testConnection()`
+- `settings.saveToken(rawInput)`
 - `projects.list()`
 - `projects.getLessons(projectId)`
 - `lessons.enqueueYoutube(...)`
@@ -242,26 +241,51 @@ UI сначала делается строго на mock data по `docs/client
 
 Данные из API маппятся в UI-типы из `src/types/ui.ts`. Renderer никогда не работает с “сырым” OpenAPI-ответом напрямую.
 
-## 8. Настройки сервера и токена
+## 8. Fixed base URL и настройки токена
 
-Нужен отдельный desktop-specific settings dialog, несмотря на то что его нет в UI-спеке веб-части. Это единственное осознанное отклонение от “полного визуального дубликата”, без которого клиент не сможет работать.
+Нужен отдельный desktop-specific settings dialog, несмотря на то что его нет в UI-спеке веб-части. Это единственное осознанное отклонение от “полного визуального дубликата”, без которого клиент не сможет работать. Визуально модал строится по тому же паттерну, что и модалки добавления уроков.
 
-Содержимое настроек:
+### 8.1 URL сервера
 
-- `serverUrl`
-- `accessToken`
+URL сервера не является пользовательской настройкой и не редактируется в UI.
+
+Он фиксируется на этапе сборки через runtime mode:
+
+- production / packaged build: `https://vb.nikiforovy.university/`
+- development и automated/local test mode: `http://video2book.test/`
+
+Следствия:
+
+- при `pnpm dev` приложение автоматически работает с `http://video2book.test/`;
+- в dev/test режиме не используем SSL и не делаем обход certificate errors, потому что base URL сразу plain `http`;
+- URL сервера не хранится в `userData/config.json`;
+- settings dialog не содержит поля server URL.
+
+### 8.2 Settings dialog
+
+Содержимое модала:
+
+- одно поле ввода `Token`
 
 Поведение:
 
-- если настройка отсутствует при первом запуске, сразу открываем settings dialog и блокируем рабочие действия;
-- `Проверить подключение` делает `GET /api/folders`;
-- при `401` или сетевой ошибке показываем понятную ошибку и предлагаем открыть настройки;
-- токен не хранится в renderer.
+- по клику на иконку шестерёнки открываем settings dialog;
+- если токен отсутствует при первом запуске, модалка открывается автоматически и блокирует рабочие действия;
+- пользователь может вставить:
+  - raw token;
+  - invite URL вида `http://video2book.test/invite/<token>`;
+- нормализация input всегда одинаковая:
+  - `trim()`;
+  - если есть `/`, берём последний непустой сегмент path;
+  - итоговая строка считается access token;
+- при сохранении token сразу валидируется запросом `GET /api/folders`;
+- при `401` или сетевой ошибке модалка остаётся открытой и показывает понятную ошибку;
+- token не хранится в renderer дольше жизненного цикла открытой формы.
 
 Хранение:
 
-- обычные поля конфигурации — в JSON-файле внутри `app.getPath("userData")`;
-- token — в том же JSON, но шифруется через Electron `safeStorage`;
+- в JSON-файле внутри `app.getPath("userData")` храним только token-related config;
+- `accessToken` в том же JSON шифруется через Electron `safeStorage`;
 - если `safeStorage` недоступен, сохраняем это явно в лог и показываем предупреждение только в dev/debug-сценарии, не пользователю.
 
 ## 9. API-слой
@@ -273,6 +297,11 @@ Main process использует:
 - сгенерированные типы из `openapi-typescript`;
 - `openapi-fetch`;
 - нативный `fetch`/`FormData`.
+
+Base URL для `ApiClient` приходит не из user settings, а из фиксированного runtime resolver:
+
+- production -> `https://vb.nikiforovy.university/`
+- development/test -> `http://video2book.test/`
 
 ### 9.2 Почему сеть в main, а не в renderer
 
@@ -608,6 +637,7 @@ UI-спека уже предполагает обычный `<input type="file"
 `Playwright` с запуском Electron:
 
 - первый запуск и settings flow;
+- dev/test runtime против `http://video2book.test/` без SSL-ветки;
 - загрузка проектов;
 - переход в проект;
 - enqueue YouTube/local jobs;

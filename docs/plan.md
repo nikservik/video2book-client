@@ -13,7 +13,10 @@
 - browser-fidelity слой запускается только в `Chromium`;
 - renderer без `Pinia`;
 - сеть только из main process;
-- настройки сервера и токен только в main process;
+- base URL API не настраивается пользователем;
+- production base URL жёстко зафиксирован как `https://vb.nikiforovy.university/`;
+- development/test base URL жёстко зафиксирован как `http://video2book.test/`;
+- settings dialog работает только с токеном и живёт в main process;
 - очередь одна, глобальная, с concurrency `1`;
 - состояние очереди хранится в JSON в `userData`;
 - все внешние утилиты пакуются внутрь приложения;
@@ -175,6 +178,9 @@
 
 - добавляем `scripts/generate-openapi.ts`;
 - генерируем `electron/shared/api/schema.ts` из `docs/client-api.yaml`;
+- добавляем единый `resolveApiBaseUrl()` с уже зафиксированным выбором:
+  - production / packaged build -> `https://vb.nikiforovy.university/`;
+  - `pnpm dev`, локальные dev-сценарии и automated/local test mode -> `http://video2book.test/`;
 - создаём `ApiClient` на `openapi-fetch`;
 - создаём mapper-функции:
   - folders -> UI folders;
@@ -187,10 +193,11 @@
 
 - `pnpm generate:openapi` детерминированно обновляет типы;
 - main process умеет типобезопасно вызывать все текущие endpoint’ы из OpenAPI;
+- URL API выбирается автоматически по runtime mode без пользовательского ввода;
 - все преобразования API -> UI лежат в одном месте.
 - `test:contract` локально подтверждает, что базовые клиентские запросы и маппинг совместимы со спецификацией.
 
-## 7. Фаза 4. Settings dialog и secure config
+## 7. Фаза 4. Token dialog и secure config
 
 ### Цель
 
@@ -198,22 +205,30 @@
 
 ### Делаем
 
-- создаём desktop-specific settings dialog;
-- сохраняем `serverUrl` и `accessToken` в `userData/config.json`;
+- создаём desktop-specific settings dialog по образцу модалок добавления урока;
+- модал открывается по клику на иконку шестерёнки в header;
+- в модале есть только одно поле: `Token`;
+- сохраняем только `accessToken` в `userData/config.json`;
 - шифруем token через `safeStorage`;
+- добавляем нормализацию пользовательского ввода:
+  - `trim()`;
+  - если пользователь вставил invite URL, берём всё после последнего непустого `/`;
+  - если пользователь вставил raw token, сохраняем его как есть;
 - реализуем IPC:
   - `settings.get`
-  - `settings.save`
-  - `settings.testConnection`
-- `testConnection` вызывает `GET /api/folders`;
+  - `settings.saveToken`
+- `settings.get` возвращает только состояние вида `hasToken`, без server URL;
+- `settings.saveToken` нормализует input и сразу валидирует его через `GET /api/folders` на уже фиксированном base URL;
 - добавляем поведение первого запуска:
-  - если настроек нет, модалка открывается автоматически;
+  - если токена нет, модалка открывается автоматически;
   - пока настройки невалидны, рабочие действия недоступны.
 
 ### Definition of done
 
-- пользователь может ввести URL и token;
-- приложение переживает перезапуск и помнит настройки;
+- пользователь может вставить raw token или invite URL;
+- `pnpm dev` автоматически работает с `http://video2book.test/`, без SSL-ошибок;
+- production build автоматически работает с `https://vb.nikiforovy.university/`;
+- приложение переживает перезапуск и помнит только token;
 - `GET /api/folders` проходит с сохранёнными настройками.
 
 ## 8. Фаза 5. Read-only интеграция двух экранов
@@ -492,6 +507,8 @@
   - mobile actions panel;
 - desktop E2E для:
   - settings flow;
+  - auto-open token modal на первом запуске;
+  - нормализации invite URL -> token;
   - projects -> project navigation;
   - enqueue и placeholder lessons;
   - restart recovery.
@@ -500,19 +517,20 @@
 
 Проверяем на каждом target:
 
-1. Первый запуск без настроек.
-2. Сохранение URL/token.
-3. Загрузка `/projects`.
-4. Открытие проекта.
-5. Добавление YouTube-урока.
-6. Добавление batch YouTube.
-7. Добавление локального MP3.
-8. Добавление локального MP4.
-9. Падение/закрытие приложения во время очереди и последующее восстановление.
-10. Установка на чистую машину без глобальных `ffmpeg`/`yt-dlp`.
-11. Проверка, что app icon и installer icon корректно отображаются на macOS и Windows.
-12. Локальный запуск `test:all` без CI.
-13. Просмотр trace/report для упавшего E2E сценария.
+1. Первый запуск без token.
+2. Сохранение token из raw строки.
+3. Сохранение token из invite URL.
+4. Загрузка `/projects`.
+5. Открытие проекта.
+6. Добавление YouTube-урока.
+7. Добавление batch YouTube.
+8. Добавление локального MP3.
+9. Добавление локального MP4.
+10. Падение/закрытие приложения во время очереди и последующее восстановление.
+11. Установка на чистую машину без глобальных `ffmpeg`/`yt-dlp`.
+12. Проверка, что app icon и installer icon корректно отображаются на macOS и Windows.
+13. Локальный запуск `test:all` без CI.
+14. Просмотр trace/report для упавшего E2E сценария.
 
 ### Definition of done
 
