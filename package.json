@@ -3,11 +3,13 @@
   "private": true,
   "version": "0.1.0",
   "description": "Desktop client for Video2Book.",
+  "author": "Sergey Nikiforov",
   "type": "module",
   "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "pnpm run prepare:binaries && electron-vite dev",
     "build": "pnpm run build:icons && pnpm run prepare:binaries && pnpm run typecheck && electron-vite build",
+    "build:licenses": "node --import tsx scripts/build-third-party-licenses.ts",
     "typecheck": "pnpm run typecheck:node && pnpm run typecheck:web",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.app.json",
@@ -23,10 +25,11 @@
     "test:e2e": "pnpm run build && playwright test --config tests/e2e/playwright.config.ts",
     "test:contract": "vitest run --project contract",
     "test:all": "pnpm run typecheck && pnpm run test && pnpm run test:browser && pnpm run test:e2e",
+    "test:packaged:smoke": "node --import tsx scripts/packaged-smoke.ts",
     "test:smoke:youtube": "node -e \"console.log('yt-dlp live smoke is not implemented in phase 1')\"",
-    "dist:mac:x64": "pnpm run build && electron-builder --mac dmg zip --x64",
-    "dist:mac:arm64": "pnpm run build && electron-builder --mac dmg zip --arm64",
-    "dist:win:x64": "pnpm run build && electron-builder --win nsis --x64"
+    "dist:mac:x64": "pnpm run build:licenses && pnpm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --x64",
+    "dist:mac:arm64": "pnpm run build:licenses && pnpm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64",
+    "dist:win:x64": "pnpm run build:licenses && pnpm run build && electron-builder --win nsis --x64"
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0",
@@ -79,13 +82,16 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "build/THIRD_PARTY_LICENSES.txt",
+        "to": "THIRD_PARTY_LICENSES.txt"
       }
     ],
     "mac": {
       "icon": "build/icons/mac/icon.icns",
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ]
     },
     "win": {

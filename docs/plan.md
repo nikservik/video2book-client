@@ -23,7 +23,7 @@
 - `yt-dlp` запускается только вместе с bundled `deno`;
 - локально произведённый аудиофайл всегда приводится к MP3;
 - все основные тесты должны запускаться локально без CI;
-- production release только с signing/notarization;
+- release-сборки делаем без сертификатов и без notarization, потому что приложение распространяется только внутри небольшой команды;
 - v1 без auto-update.
 
 ## 2. Состояние API после обновления
@@ -420,7 +420,7 @@
 - временные директории не разрастаются бесконтрольно.
 - recovery suite локально воспроизводит и подтверждает все ключевые failure modes.
 
-## 14. Фаза 11. Packaging, signing и installer UX
+## 14. Фаза 11. Packaging и installer UX
 
 ### Цель
 
@@ -429,20 +429,17 @@
 ### Делаем
 
 - настраиваем `electron-builder`:
-  - `mac` targets: `dmg`, `zip`
+  - `mac` target: `dmg`
   - `win` target: `nsis`
   - `extraResources` -> `build/bin`;
 - настраиваем release icons, app metadata, product name:
   - macOS icon -> `build/icons/mac/icon.icns`
   - Windows icon -> `build/icons/win/icon.ico`
   - dev/base app icon -> `build/icons/icon.png`
-- включаем signing:
-  - macOS Developer ID + notarization;
-  - Windows code signing certificate;
+- явно фиксируем release flow без сертификатов:
+  - macOS сборка без `Developer ID` и без notarization; допустим только ad-hoc signing от `electron-builder`;
+  - Windows сборка без code signing certificate;
 - добавляем third-party licenses в дистрибутив;
-- документируем CI matrix:
-  - `macos-latest` x64/arm64 отдельными job;
-  - `windows-latest` x64 отдельной job;
 - build всегда идёт после чистого `pnpm install --frozen-lockfile`.
 - добавляем локальный packaged smoke:
   - build приложения;
@@ -455,8 +452,8 @@
 - packaged app на чистой машине находит и запускает bundled binaries;
 - packaged app и инсталляторы используют иконки из `build/icons`, а не дефолтные Electron assets;
 - пользователю не требуется ставить `ffmpeg`, `yt-dlp` или `deno`;
-- установка не вызывает лишних platform security warnings сверх неизбежных для неподписанной dev-сборки.
 - packaged smoke локально воспроизводим и документирован.
+- команда понимает и принимает platform security warnings, связанные со сборкой без сертификатов.
 
 ## 15. Фаза 12. Финальная проверка
 

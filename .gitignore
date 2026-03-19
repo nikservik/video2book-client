@@ -7,4 +7,6 @@ playwright-report
 test-results
 .vitest
 build/bin
+build/THIRD_PARTY_LICENSES.txt
+release-smoke
 .DS_Store
