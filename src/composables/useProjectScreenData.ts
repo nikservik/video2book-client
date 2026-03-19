@@ -69,6 +69,7 @@ export function useProjectScreenData(options: UseProjectScreenDataOptions) {
   return {
     errorMessage,
     projectScreen,
+    refreshProjectScreen: loadProjectScreen,
     status,
   };
 }

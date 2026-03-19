@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { setTimeout as delay } from "node:timers/promises";
 
 interface PipelineVersionRecord {
   description: string;
@@ -60,6 +61,10 @@ export interface StatefulApiServer {
     nextRunId: number;
     projects: Record<number, ProjectRecord>;
   };
+}
+
+export interface StartStatefulApiServerOptions {
+  postResponseDelayMs?: number;
 }
 
 const AUTHORIZATION_HEADER = "Bearer test-token";
@@ -277,7 +282,10 @@ function createLessonRun(
   ];
 }
 
-export async function startStatefulApiServer(port: number): Promise<StatefulApiServer> {
+export async function startStatefulApiServer(
+  port: number,
+  options: StartStatefulApiServerOptions = {},
+): Promise<StatefulApiServer> {
   const state = createInitialState();
   const server = createServer(async (request, response) => {
     const requestUrl = new URL(request.url ?? "/", `http://127.0.0.1:${port}`);
@@ -319,6 +327,10 @@ export async function startStatefulApiServer(port: number): Promise<StatefulApiS
     }
 
     if (request.method === "POST") {
+      if ((options.postResponseDelayMs ?? 0) > 0) {
+        await delay(options.postResponseDelayMs);
+      }
+
       const contentType = request.headers["content-type"] ?? "";
       const fields = parseMultipartFieldValues(await readRequestBody(request), contentType);
       const lessonId = state.nextLessonId++;

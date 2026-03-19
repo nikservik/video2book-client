@@ -243,6 +243,38 @@ test("enqueues a YouTube lesson from the create modal", async () => {
   }
 });
 
+test("shows a placeholder lesson immediately after enqueue before API refresh completes", async () => {
+  const apiServer = await startStatefulApiServer(serverPort, {
+    postResponseDelayMs: 1200,
+  });
+  const { app, firstWindow, userDataPath } = await launchApp(apiServer);
+
+  try {
+    await clickProject(firstWindow);
+
+    await firstWindow.getByRole("button", { name: "Добавить урок", exact: true }).click();
+    const dialog = firstWindow.getByRole("dialog");
+
+    await dialog.getByLabel("Название урока").fill("Placeholder урок");
+    await dialog.getByLabel("Ссылка на YouTube").fill("https://youtu.be/placeholder-lesson");
+    await dialog.getByRole("button", { name: "Сохранить" }).click();
+
+    await expect(firstWindow.getByText("Placeholder урок")).toBeVisible();
+    expect(apiServer.state.projects[101]?.lessons.length).toBe(2);
+
+    const queueJob = await waitForQueueJob(userDataPath, (job) => {
+      return job.lessonName === "Placeholder урок";
+    });
+
+    await waitForQueueJobStatus(userDataPath, queueJob.id, "done");
+    await waitForProjectLessonsCount(apiServer, 101, 3);
+  } finally {
+    await app.close();
+    await apiServer.close();
+    await rm(userDataPath, { recursive: true, force: true });
+  }
+});
+
 test("enqueues a local audio lesson from the audio/video modal", async () => {
   const apiServer = await startStatefulApiServer(serverPort);
   const { app, firstWindow, userDataPath } = await launchApp(apiServer);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef } from "vue";
+import { computed, shallowRef, watch } from "vue";
 import { useRoute } from "vue-router";
 import type {
   BreadcrumbItem,
@@ -12,6 +12,7 @@ import {
 import { useProjectLessonActions } from "../composables/useProjectLessonActions";
 import { useProjectQueueSnapshot } from "../composables/useProjectQueueSnapshot";
 import { useProjectScreenData } from "../composables/useProjectScreenData";
+import { mergeProjectLessons } from "../utils/projectLessonsMerge";
 import AddLessonFromAudioModal from "../components/project/modals/AddLessonFromAudioModal.vue";
 import AddLessonsListModal from "../components/project/modals/AddLessonsListModal.vue";
 import CreateLessonModal from "../components/project/modals/CreateLessonModal.vue";
@@ -50,7 +51,12 @@ const projectId = computed(() => {
 
   return Number.isInteger(parsedProjectId) ? parsedProjectId : null;
 });
-const { errorMessage, projectScreen, status } = useProjectScreenData({
+const {
+  errorMessage,
+  projectScreen,
+  refreshProjectScreen,
+  status,
+} = useProjectScreenData({
   enabled: () => props.settingsReady,
   revision: () => props.settingsRevision,
   projectId: () => projectId.value,
@@ -63,7 +69,7 @@ const pipelineVersionOptions = computed(() => {
 const parentFolderId = computed(() => {
   return projectScreen.value?.parentFolderId ?? null;
 });
-const { refreshSnapshot } = useProjectQueueSnapshot({
+const { queueSnapshot, refreshSnapshot } = useProjectQueueSnapshot({
   enabled: () => props.settingsReady,
   projectId: () => projectId.value,
   revision: () => props.settingsRevision,
@@ -107,18 +113,38 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
   },
 ]);
 
+const missingCreatedLessonIdsKey = computed(() => {
+  if (!project.value) {
+    return "";
+  }
+
+  const apiLessonIds = new Set(project.value.lessons.map((lesson) => lesson.id));
+  const missingCreatedLessonIds = queueSnapshot.value.jobs
+    .map((job) => job.createdLesson)
+    .filter((lesson): lesson is LessonItem => lesson !== null && !apiLessonIds.has(lesson.id))
+    .map((lesson) => lesson.id)
+    .sort((left, right) => left - right);
+
+  return missingCreatedLessonIds.join(",");
+});
+
 const sortedLessons = computed<LessonItem[]>(() => {
   if (!project.value) {
     return [];
   }
 
+  const mergedLessons = mergeProjectLessons(
+    project.value.lessons,
+    queueSnapshot.value.jobs,
+  );
+
   if (lessonSort.value === "name") {
-    return [...project.value.lessons].sort((left, right) =>
+    return [...mergedLessons].sort((left, right) =>
       left.name.localeCompare(right.name, "ru"),
     );
   }
 
-  return [...project.value.lessons].sort(
+  return [...mergedLessons].sort(
     (left, right) => left.createdAtOrder - right.createdAtOrder,
   );
 });
@@ -156,6 +182,20 @@ function setActionsMenuOpen(value: boolean): void {
 function setLessonSort(value: LessonSortValue): void {
   lessonSort.value = value;
 }
+
+watch(
+  [() => projectId.value, () => missingCreatedLessonIdsKey.value],
+  ([currentProjectId, missingLessonIdsKey]) => {
+    if (!currentProjectId || !missingLessonIdsKey) {
+      return;
+    }
+
+    void refreshProjectScreen(currentProjectId);
+  },
+  {
+    immediate: true,
+  },
+);
 
 </script>
 

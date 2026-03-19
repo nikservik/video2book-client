@@ -71,9 +71,18 @@ function lessonAudioDownloadIconClass(status: LessonAudioStatus): string {
       class="flex flex-col items-start gap-2 px-4 py-3 md:flex-row md:gap-3 md:pr-3"
     >
       <div class="flex w-full items-start justify-between gap-3 md:w-2/3">
-        <span class="text-base text-gray-900 dark:text-white">
-          {{ lesson.name }}
-        </span>
+        <div class="min-w-0">
+          <p class="truncate text-base text-gray-900 dark:text-white">
+            {{ lesson.name }}
+          </p>
+          <p
+            v-if="lesson.statusLabel"
+            class="mt-1 text-xs text-gray-500 dark:text-gray-400"
+            :class="{ 'text-red-600 dark:text-red-400': lesson.audioStatus === 'failed' }"
+          >
+            {{ lesson.statusLabel }}
+          </p>
+        </div>
 
         <div class="mt-px flex items-center gap-1">
           <a
@@ -107,7 +116,7 @@ function lessonAudioDownloadIconClass(status: LessonAudioStatus): string {
           v-if="lesson.pipelineRuns.length === 0"
           class="w-full py-0.5 text-center text-sm text-gray-500 dark:text-gray-400"
         >
-          Шаблонов пока нет
+          {{ lesson.pipelineEmptyLabel ?? "Шаблонов пока нет" }}
         </p>
 
         <div v-else class="min-w-0 space-y-1">

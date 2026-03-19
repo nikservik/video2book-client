@@ -67,6 +67,10 @@ export interface LessonItem {
   audioStatus: LessonAudioStatus;
   audioDurationLabel?: string;
   audioErrorTooltip?: string;
+  isPlaceholder?: boolean;
+  queueJobId?: string;
+  statusLabel?: string;
+  pipelineEmptyLabel?: string;
   pipelineRuns: LessonPipelineRunItem[];
 }
 
