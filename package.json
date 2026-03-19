@@ -15,6 +15,8 @@
     "typecheck:web": "vue-tsc --noEmit -p tsconfig.app.json",
     "generate:openapi": "node --import tsx scripts/generate-openapi.ts",
     "prepare:binaries": "node --import tsx scripts/prepare-binaries.ts",
+    "prepare:binaries:mac:x64": "node --import tsx scripts/prepare-target-binaries.ts --platform darwin --arch x64",
+    "prepare:binaries:win:x64": "node --import tsx scripts/prepare-target-binaries.ts --platform win32 --arch x64",
     "build:icons": "node --import tsx scripts/build-icons.ts",
     "test": "pnpm run test:unit && pnpm run test:integration && pnpm run test:component && pnpm run test:contract",
     "test:watch": "vitest",
@@ -27,9 +29,9 @@
     "test:all": "pnpm run typecheck && pnpm run test && pnpm run test:browser && pnpm run test:e2e",
     "test:packaged:smoke": "node --import tsx scripts/packaged-smoke.ts",
     "test:smoke:youtube": "node -e \"console.log('yt-dlp live smoke is not implemented in phase 1')\"",
-    "dist:mac:x64": "pnpm run build:licenses && pnpm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --x64",
+    "dist:mac:x64": "node --import tsx scripts/dist-target.ts --platform darwin --arch x64 --target dmg",
     "dist:mac:arm64": "pnpm run build:licenses && pnpm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64",
-    "dist:win:x64": "pnpm run build:licenses && pnpm run build && electron-builder --win nsis --x64"
+    "dist:win:x64": "node --import tsx scripts/dist-target.ts --platform win32 --arch x64 --target nsis"
   },
   "dependencies": {
     "openapi-fetch": "^0.17.0",
