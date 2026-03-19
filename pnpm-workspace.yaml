@@ -1,5 +1,7 @@
 allowBuilds:
+  deno: true
   electron: true
   electron-winstaller: true
   esbuild: true
+  ffmpeg-ffprobe-static: true
   msw: true

@@ -17,6 +17,9 @@ importers:
       vue-router:
         specifier: ^5.0.3
         version: 5.0.3(@vue/compiler-sfc@3.5.30)(vue@3.5.30(typescript@5.9.3))
+      yt-dlp-wrap:
+        specifier: 2.3.12
+        version: 2.3.12
     devDependencies:
       '@playwright/test':
         specifier: 1.58.2
@@ -42,6 +45,9 @@ importers:
       '@vue/test-utils':
         specifier: 2.4.6
         version: 2.4.6
+      deno:
+        specifier: 2.7.6
+        version: 2.7.6
       electron:
         specifier: ^41.0.3
         version: 41.0.3
@@ -51,6 +57,9 @@ importers:
       electron-vite:
         specifier: ^5.0.0
         version: 5.0.0(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
+      ffmpeg-ffprobe-static:
+        specifier: 6.1.2-rc.1
+        version: 6.1.2-rc.1
       jsdom:
         specifier: ^29.0.0
         version: 29.0.0
@@ -221,6 +230,42 @@ packages:
   '@csstools/css-tokenizer@4.0.0':
     resolution: {integrity: sha512-QxULHAm7cNu72w97JUNCBFODFaXpbDg+dP8b/oWFAZ2MTRppA3U00Y2L1HqaS4J6yBqxwa/Y3nMBaxVKbB/NsA==}
     engines: {node: '>=20.19.0'}
+
+  '@deno/darwin-arm64@2.7.6':
+    resolution: {integrity: sha512-PRRzLK3AfCYthVUEy8/QcCwbWOLt8yt9KLQcnPqi+BoxnRsWHdbDwoJ9xwSigHtD2wOvay98/wU0C+NOiZ8W0g==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@deno/darwin-x64@2.7.6':
+    resolution: {integrity: sha512-xy+jkR5HdGBjdjvRr1EQT62YSrdnYYn6i4k2Jw0hqNIwp2+IyiEbmD3wQ/uQZTt+mMkl+cq2adYuDg4lmGA9vw==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@deno/linux-arm64-glibc@2.7.6':
+    resolution: {integrity: sha512-bMe/5MVeQqzEFleC7oCCxyftUuK/5IM8F66txs33dL+a101QUn3cCSZnor5Ckcf0tY42crFMJ7DiCWuJCP/rtQ==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@deno/linux-x64-glibc@2.7.6':
+    resolution: {integrity: sha512-pyKN9G7qFJWLE2pE3G5Hb05b1ZcjakK3af5U7bk7QQRlKTZGygUTzVlOyzkFh827NpJa3roPaYXsMVZgcml8dw==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@deno/win32-arm64@2.7.6':
+    resolution: {integrity: sha512-dG29tSiV4gKC9V1+55RovzMfdgKKeVrQYOPUL1xREMWG2+ZacQ++LjwP/RCGyhZXOwvVBLDJw3AK9GXTLBp6Jw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@deno/win32-x64@2.7.6':
+    resolution: {integrity: sha512-m6N4rrJUjLyVuZ9YjsdiSHNldbljq9z5+LlTajIHs+JzDaWbs+mXIfhLB4y9cGB73R1msCrE93Q6acnoFlfEFw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@derhuerst/http-basic@8.2.4':
+    resolution: {integrity: sha512-F9rL9k9Xjf5blCz8HsJRO4diy111cayL2vkY2XE4r4t3n0yPXVYy3KD3nJ1qbrSn9743UWSXH4IwuCa/HWlGFw==}
+    engines: {node: '>=6.0.0'}
 
   '@develar/schema-utils@2.6.5':
     resolution: {integrity: sha512-0cp4PsWQ/9avqTVMCtZ+GirikIA36ikvjtHweU4/j8yLtgObI0+JUPhYFScgwlteveGB1rt3Cm8UhN04XayDig==}
@@ -1071,6 +1116,9 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
+  '@types/node@10.17.60':
+    resolution: {integrity: sha512-F0KIgDJfy2nA3zMLmWGKxcH2ZVEtCZXHHdOQs2gSaQ27+lNeEfGxzkIw90aXswATX7AZ33tahPbzy6KAfUreVw==}
+
   '@types/node@22.19.15':
     resolution: {integrity: sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg==}
 
@@ -1574,6 +1622,10 @@ packages:
   concat-map@0.0.1:
     resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
 
+  concat-stream@2.0.0:
+    resolution: {integrity: sha512-MWufYdFw53ccGjCA+Ol7XJYpAlW6/prSMzuPOTRnJGcGzuhLn4Scrz7qf6o8bROZ514ltazcIFJZevcfbo0x7A==}
+    engines: {'0': node >= 6.0}
+
   confbox@0.1.8:
     resolution: {integrity: sha512-RMtmw0iFkeR4YV+fUOSucriAQNb9g8zFR52MWCtl+cCZOFRNL6zeB395vPzFhEjjn4fMxXudmELnl/KF/WrK6w==}
 
@@ -1655,6 +1707,10 @@ packages:
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
     engines: {node: '>=0.4.0'}
+
+  deno@2.7.6:
+    resolution: {integrity: sha512-c1f/1YbZjlIoH+xqRQfz4ir/HcB0h4VBG8OJrM8EANIQxnW+izAylNKzK7jShgNeZtFXkZujZETxa+Rh954xkA==}
+    hasBin: true
 
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
@@ -1877,6 +1933,10 @@ packages:
       picomatch:
         optional: true
 
+  ffmpeg-ffprobe-static@6.1.2-rc.1:
+    resolution: {integrity: sha512-zHHGmR76ebnto/TU4qGTnQPqBBKVLTalJG6JdzsZujd9CWybojK4lNzW51154bItUEf12WHiHzSBmvkEr+VIXg==}
+    engines: {node: '>=10'}
+
   figures@2.0.0:
     resolution: {integrity: sha512-Oa2M9atig69ZkfwiApY8F2Yy+tzMbazyvqv21R0NsSC8floSOC09BbT1ITWAdoMGQvJ/aZnR1KMwdx9tvHnTNA==}
     engines: {node: '>=4'}
@@ -2074,6 +2134,9 @@ packages:
 
   http-reasons@0.1.0:
     resolution: {integrity: sha512-P6kYh0lKZ+y29T2Gqz+RlC9WBLhKe8kDmcJ+A+611jFfxdPsbMRQ5aNmFRM3lENqFkK+HTTL+tlQviAiv0AbLQ==}
+
+  http-response-object@3.0.2:
+    resolution: {integrity: sha512-bqX0XTF6fnXSQcEJ2Iuyr75yVakyjIDCqroJQ/aHfSdlM743Cwqoi2nDYMzLGWUcuTWGWy8AAvOKXTfiv6q9RA==}
 
   http2-wrapper@1.0.3:
     resolution: {integrity: sha512-V+23sDMr12Wnz7iTcDeJr3O6AIxlnvT/bmaAAAP/Xda35C90p9599p0F1eHR/N1KILWSoWVAiOMFjBBXaXSMxg==}
@@ -2708,6 +2771,9 @@ packages:
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
 
+  parse-cache-control@1.0.1:
+    resolution: {integrity: sha512-60zvsJReQPX5/QP0Kzfd/VrpjScIQ7SHBW6bFCYfEP+fp0Eppr1SHhIO5nd1PjZtvclzSzES9D/p5nFJurwfWg==}
+
   parse-json@4.0.0:
     resolution: {integrity: sha512-aOIos8bujGN93/8Ox/jPLh7RwVnPEysynVFE+fQZyg6jKELEHwzgKdLRFHUgXJL6kylijVSBC4BvN9OmsB48Rw==}
     engines: {node: '>=4'}
@@ -3221,6 +3287,9 @@ packages:
     resolution: {integrity: sha512-TkRKr9sUTxEH8MdfuCSP7VizJyzRNMjj2J2do2Jr3Kym598JVdEksuzPQCnlFPW4ky9Q+iA+ma9BGm06XQBy8g==}
     engines: {node: '>= 0.6'}
 
+  typedarray@0.0.6:
+    resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
+
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
@@ -3571,6 +3640,9 @@ packages:
     resolution: {integrity: sha512-U/PBtDf35ff0D8X8D0jfdzHYEPFxAI7jJlxZXwCSez5M3190m+QobIfh+sWDWSHMCWWJN2AWamkegn6vr6YBTw==}
     engines: {node: '>=18'}
 
+  yt-dlp-wrap@2.3.12:
+    resolution: {integrity: sha512-P8fJ+6M1YjukyJENCTviNLiZ8mokxprR54ho3DsSKPWDcac489OjRiStGEARJr6un6ETS6goTn4CWl/b/rM3aA==}
+
 snapshots:
 
   7zip-bin@5.2.0: {}
@@ -3731,6 +3803,31 @@ snapshots:
       css-tree: 3.2.1
 
   '@csstools/css-tokenizer@4.0.0': {}
+
+  '@deno/darwin-arm64@2.7.6':
+    optional: true
+
+  '@deno/darwin-x64@2.7.6':
+    optional: true
+
+  '@deno/linux-arm64-glibc@2.7.6':
+    optional: true
+
+  '@deno/linux-x64-glibc@2.7.6':
+    optional: true
+
+  '@deno/win32-arm64@2.7.6':
+    optional: true
+
+  '@deno/win32-x64@2.7.6':
+    optional: true
+
+  '@derhuerst/http-basic@8.2.4':
+    dependencies:
+      caseless: 0.12.0
+      concat-stream: 2.0.0
+      http-response-object: 3.0.2
+      parse-cache-control: 1.0.1
 
   '@develar/schema-utils@2.6.5':
     dependencies:
@@ -4512,6 +4609,8 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
+  '@types/node@10.17.60': {}
+
   '@types/node@22.19.15':
     dependencies:
       undici-types: 6.21.0
@@ -5145,6 +5244,13 @@ snapshots:
 
   concat-map@0.0.1: {}
 
+  concat-stream@2.0.0:
+    dependencies:
+      buffer-from: 1.1.2
+      inherits: 2.0.4
+      readable-stream: 3.6.2
+      typedarray: 0.0.6
+
   confbox@0.1.8: {}
 
   confbox@0.2.4: {}
@@ -5230,6 +5336,15 @@ snapshots:
     optional: true
 
   delayed-stream@1.0.0: {}
+
+  deno@2.7.6:
+    optionalDependencies:
+      '@deno/darwin-arm64': 2.7.6
+      '@deno/darwin-x64': 2.7.6
+      '@deno/linux-arm64-glibc': 2.7.6
+      '@deno/linux-x64-glibc': 2.7.6
+      '@deno/win32-arm64': 2.7.6
+      '@deno/win32-x64': 2.7.6
 
   detect-libc@2.1.2: {}
 
@@ -5529,6 +5644,15 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.3
 
+  ffmpeg-ffprobe-static@6.1.2-rc.1:
+    dependencies:
+      '@derhuerst/http-basic': 8.2.4
+      env-paths: 2.2.1
+      https-proxy-agent: 5.0.1
+      progress: 2.0.3
+    transitivePeerDependencies:
+      - supports-color
+
   figures@2.0.0:
     dependencies:
       escape-string-regexp: 1.0.5
@@ -5758,6 +5882,10 @@ snapshots:
       - supports-color
 
   http-reasons@0.1.0: {}
+
+  http-response-object@3.0.2:
+    dependencies:
+      '@types/node': 10.17.60
 
   http2-wrapper@1.0.3:
     dependencies:
@@ -6376,6 +6504,8 @@ snapshots:
 
   package-json-from-dist@1.0.1: {}
 
+  parse-cache-control@1.0.1: {}
+
   parse-json@4.0.0:
     dependencies:
       error-ex: 1.3.4
@@ -6887,6 +7017,8 @@ snapshots:
       media-typer: 0.3.0
       mime-types: 2.1.35
 
+  typedarray@0.0.6: {}
+
   typescript@5.9.3: {}
 
   ufo@1.6.3: {}
@@ -7178,3 +7310,5 @@ snapshots:
   yocto-queue@0.1.0: {}
 
   yoctocolors-cjs@2.1.3: {}
+
+  yt-dlp-wrap@2.3.12: {}

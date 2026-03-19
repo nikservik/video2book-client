@@ -1,9 +1,6 @@
-import { mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { prepareBundledBinaries } from "../electron/main/services/binaries/prepareBinaries";
 
-const outputDir = resolve(process.cwd(), "build/bin");
+const binaryPaths = await prepareBundledBinaries();
 
-mkdirSync(outputDir, { recursive: true });
-
-console.log(`Binary output directory is ready: ${outputDir}`);
-console.log("Binary download and packaging will be implemented in phase 6.");
+console.log("Bundled binaries are ready:");
+console.log(JSON.stringify(binaryPaths, null, 2));
