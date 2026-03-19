@@ -10,6 +10,7 @@ const PROJECTS_LIST_CHANNEL = "projects:list";
 const PROJECTS_GET_LESSONS_CHANNEL = "projects:getLessons";
 
 export interface RegisterProjectsIpcOptions {
+  appIsPackaged: boolean;
   configStore: ConfigStore;
 }
 
@@ -33,7 +34,10 @@ function mapProjectsErrorMessage(error: unknown): string {
   return "Не удалось получить данные с сервера.";
 }
 
-async function createAuthorizedApiClient(configStore: ConfigStore) {
+async function createAuthorizedApiClient(
+  configStore: ConfigStore,
+  appIsPackaged: boolean,
+) {
   const accessToken = await configStore.getAccessToken();
 
   if (!accessToken) {
@@ -42,6 +46,7 @@ async function createAuthorizedApiClient(configStore: ConfigStore) {
 
   return createApiClient({
     accessToken,
+    appIsPackaged,
   });
 }
 
@@ -53,7 +58,10 @@ export function registerProjectsIpcHandlers(
 
   ipcMain.handle(PROJECTS_LIST_CHANNEL, async () => {
     try {
-      const apiClient = await createAuthorizedApiClient(options.configStore);
+      const apiClient = await createAuthorizedApiClient(
+        options.configStore,
+        options.appIsPackaged,
+      );
       const response = await apiClient.listFolders();
 
       return {
@@ -68,7 +76,10 @@ export function registerProjectsIpcHandlers(
     PROJECTS_GET_LESSONS_CHANNEL,
     async (_event, projectId: number) => {
       try {
-        const apiClient = await createAuthorizedApiClient(options.configStore);
+        const apiClient = await createAuthorizedApiClient(
+          options.configStore,
+          options.appIsPackaged,
+        );
         const response = await apiClient.listProjectLessons(projectId);
 
         return mapProjectLessonsResponse(response);

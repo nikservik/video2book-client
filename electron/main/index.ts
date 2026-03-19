@@ -9,6 +9,7 @@ import { createApiClient } from "./services/api/apiClient";
 import { resolveBinaryPaths } from "./services/binaries/binaryResolver";
 import { createConfigStore } from "./services/config/configStore";
 import { electronTokenCipher } from "./services/config/electronTokenCipher";
+import { resolveAppUserDataPath } from "./services/config/userDataPath";
 import { createLessonQueue } from "./services/queue/lessonQueue";
 import {
   createAudioTranscoder,
@@ -25,10 +26,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 let lessonQueueSingleton: ReturnType<typeof createLessonQueue> | null = null;
 
-const forcedUserDataPath = process.env.VIDEO2BOOK_USER_DATA_PATH;
+const configuredUserDataPath = resolveAppUserDataPath({
+  appDataPath: app.getPath("appData"),
+  appIsPackaged: app.isPackaged,
+  appName: APP_NAME,
+  forcedUserDataPath: process.env.VIDEO2BOOK_USER_DATA_PATH,
+});
 
-if (forcedUserDataPath) {
-  app.setPath("userData", forcedUserDataPath);
+if (configuredUserDataPath) {
+  app.setPath("userData", configuredUserDataPath);
 }
 
 function resolveProjectPath(...segments: string[]): string {
@@ -171,6 +177,7 @@ app.whenReady().then(() => {
 
         return createApiClient({
           accessToken,
+          appIsPackaged: app.isPackaged,
         });
       },
     }),
@@ -178,9 +185,11 @@ app.whenReady().then(() => {
   });
 
   registerSettingsIpcHandlers({
+    appIsPackaged: app.isPackaged,
     configStore,
   });
   registerProjectsIpcHandlers({
+    appIsPackaged: app.isPackaged,
     configStore,
   });
   registerLessonQueueIpcHandlers({

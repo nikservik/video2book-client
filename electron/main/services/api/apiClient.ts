@@ -17,6 +17,7 @@ export interface CreateProjectLessonFromAudioInput {
 
 export interface ApiClientOptions {
   accessToken: string;
+  appIsPackaged?: boolean;
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
 }
@@ -100,7 +101,12 @@ async function unwrapApiResponse<T>(request: Promise<{
 export function createApiClient(options: ApiClientOptions): Video2BookApiClient {
   const resolvedOptions: Required<ApiClientOptions> = {
     accessToken: options.accessToken,
-    baseUrl: options.baseUrl ?? resolveApiBaseUrl(),
+    appIsPackaged: options.appIsPackaged ?? false,
+    baseUrl:
+      options.baseUrl ??
+      resolveApiBaseUrl({
+        appIsPackaged: options.appIsPackaged ?? false,
+      }),
     fetch: options.fetch ?? globalThis.fetch,
   };
   const client = createTypedClient(resolvedOptions);

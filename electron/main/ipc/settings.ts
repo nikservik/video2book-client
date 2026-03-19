@@ -7,6 +7,7 @@ const SETTINGS_GET_CHANNEL = "settings:get";
 const SETTINGS_SAVE_TOKEN_CHANNEL = "settings:saveToken";
 
 export interface RegisterSettingsIpcOptions {
+  appIsPackaged: boolean;
   configStore: ConfigStore;
 }
 
@@ -46,6 +47,7 @@ export function registerSettingsIpcHandlers(
     try {
       await createApiClient({
         accessToken: normalizedToken,
+        appIsPackaged: options.appIsPackaged,
       }).listFolders();
     } catch (error) {
       throw new Error(mapSettingsErrorMessage(error));
