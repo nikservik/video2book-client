@@ -363,7 +363,7 @@ export async function startStatefulApiServer(
         project_id: projectId,
         name: lessonName || `Новый урок ${lessonId}`,
         source_filename: null,
-        source_url: null,
+        source_url: fields.source_url?.trim().length ? fields.source_url.trim() : null,
         audio_duration_seconds: null,
         audio_duration_label: null,
         download_status: "running",

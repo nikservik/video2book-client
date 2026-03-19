@@ -160,6 +160,12 @@ export interface components {
              */
             name: string;
             /**
+             * Format: uri
+             * @description Необязательная ссылка на исходник урока. Если передана, API сохраняет её и возвращает в `lesson.source_url`.
+             * @example https://www.youtube.com/watch?v=uploaded-audio-source
+             */
+            source_url?: string | null;
+            /**
              * @description Идентификатор версии шаблона. Если поле не передано, API использует `projects.default_pipeline_version_id`.
              * @example 7
              */

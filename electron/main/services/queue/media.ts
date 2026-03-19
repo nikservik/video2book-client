@@ -69,6 +69,7 @@ export interface LessonUploader {
     lessonName: string;
     pipelineVersionId: number | null;
     projectId: number;
+    sourceUrl?: string | null;
   }): Promise<LessonItem>;
 }
 
@@ -300,6 +301,7 @@ export function createLessonUploader(
           file: fileBlob,
           filename: basename(input.filePath),
           pipelineVersionId: input.pipelineVersionId,
+          sourceUrl: input.sourceUrl,
         });
 
         return mapCreatedLessonResponse(response);

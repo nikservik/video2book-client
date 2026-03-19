@@ -201,6 +201,7 @@ export function createLessonQueue(options: LessonQueueOptions): LessonQueue {
         lessonName: job.lessonName,
         pipelineVersionId: job.pipelineVersionId,
         projectId: job.projectId,
+        sourceUrl: job.kind === "youtube" ? job.sourceUrl : null,
       });
 
       await updateJob(job.id, (currentJob) => ({

@@ -262,6 +262,9 @@ test("enqueues a YouTube lesson from the create modal", async () => {
 
     await waitForQueueJobStatus(userDataPath, queueJob.id, "done");
     await waitForProjectLessonsCount(apiServer, 101, 3);
+    expect(apiServer.state.projects[101]?.lessons.at(-1)?.source_url).toBe(
+      "https://youtu.be/new-youtube-lesson",
+    );
   } finally {
     await app.close();
     await apiServer.close();

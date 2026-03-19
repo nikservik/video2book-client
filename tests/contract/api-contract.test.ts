@@ -123,11 +123,13 @@ describe("OpenAPI contract", () => {
       file: new Blob(["audio-data"], { type: "audio/mpeg" }),
       filename: "lesson.mp3",
       pipelineVersionId: 7,
+      sourceUrl: "https://www.youtube.com/watch?v=uploaded-audio-source",
     });
     const lesson = mapCreatedLessonResponse(response);
 
     expect(lesson.name).toBe("Новая лекция");
     expect(lesson.audioStatus).toBe("running");
+    expect(lesson.sourceUrl).toBe("https://www.youtube.com/watch?v=uploaded-audio-source");
     expect(lesson.pipelineRuns[0]?.versionLabel).toBe("v3");
   });
 });

@@ -13,6 +13,7 @@ export interface CreateProjectLessonFromAudioInput {
   file: Blob;
   filename: string;
   pipelineVersionId?: number | null;
+  sourceUrl?: string | null;
 }
 
 export interface ApiClientOptions {
@@ -137,6 +138,10 @@ export function createApiClient(options: ApiClientOptions): Video2BookApiClient 
 
       if (input.pipelineVersionId !== null && input.pipelineVersionId !== undefined) {
         requestBody.set("pipeline_version_id", String(input.pipelineVersionId));
+      }
+
+      if (input.sourceUrl?.trim()) {
+        requestBody.set("source_url", input.sourceUrl.trim());
       }
 
       requestBody.set("file", input.file, input.filename);

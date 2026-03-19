@@ -336,7 +336,7 @@ Renderer получает уже UI-friendly DTO.
   - `lessons`
   - `pipeline_versions`
 - `Lesson` теперь содержит `source_url`
-- `POST /api/projects/{project}/lessons` возвращает `Lesson` в той же схеме, значит после создания урока не нужен отдельный workaround для source link
+- `POST /api/projects/{project}/lessons` принимает необязательный `source_url` и возвращает `Lesson` в той же схеме, значит после создания урока не нужен отдельный workaround для source link
 
 Этого достаточно, чтобы:
 
@@ -378,6 +378,11 @@ Renderer получает уже UI-friendly DTO.
 - `sourceUrl | null`
 - `sourceFilePath | null`
 - `status: "queued" | "running" | "failed" | "done"`
+
+Правило передачи источника:
+
+- для `kind: "youtube"` исходная ссылка хранится в `sourceUrl` внутри queue job и уходит в API как multipart-поле `source_url`;
+- для `kind: "local-file"` поле `source_url` в API не передаётся.
 - `stage: "download" | "transcode" | "upload" | "sync" | null`
 - `errorMessage | null`
 - `createdAt`

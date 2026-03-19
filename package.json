@@ -1,7 +1,7 @@
 {
   "name": "video2book-client",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Desktop client for Video2Book.",
   "author": "Sergey Nikiforov",
   "type": "module",

@@ -35,6 +35,7 @@
 - `GET /api/projects/{project}/lessons` возвращает `project`, `lessons`, `pipeline_versions`;
 - `Lesson` содержит `source_url`;
 - `POST /api/projects/{project}/lessons` возвращает `Lesson` в той же актуальной схеме.
+- `POST /api/projects/{project}/lessons` принимает необязательный `source_url`.
 
 Вывод: реальную интеграцию можно делать без ожидания дополнительных backend-изменений.
 
@@ -309,7 +310,7 @@
   - local audio acceptable -> upload as is;
   - local video -> ffmpeg to mp3;
   - unsupported audio -> ffmpeg to mp3;
-  - youtube -> yt-dlp audio-only -> mp3 -> upload;
+  - youtube -> yt-dlp audio-only -> mp3 -> upload + `source_url`;
 - валидируем итоговый аудиофайл на лимит 500 MB перед upload;
 - сохраняем `stderr.log` в workspace job.
 - покрываем это локальными integration-тестами:

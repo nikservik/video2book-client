@@ -66,7 +66,7 @@ describe("lesson queue", () => {
     temporaryDirectories.push(directory);
 
     const localAudioPath = join(directory, "local.mp3");
-    const uploadOrder: string[] = [];
+    const uploadCalls: Array<{ lessonName: string; sourceUrl?: string | null }> = [];
 
     await writeFile(localAudioPath, "local-audio", "utf8");
 
@@ -98,10 +98,13 @@ describe("lesson queue", () => {
         }),
       },
       lessonUploader: {
-        uploadAudio: vi.fn(async ({ lessonName }) => {
-          uploadOrder.push(lessonName);
+        uploadAudio: vi.fn(async ({ lessonName, sourceUrl }) => {
+          uploadCalls.push({
+            lessonName,
+            sourceUrl,
+          });
           await delay(30);
-          return createLesson(uploadOrder.length, lessonName);
+          return createLesson(uploadCalls.length, lessonName);
         }),
       },
       logger: silentLogger,
@@ -127,7 +130,16 @@ describe("lesson queue", () => {
       return (await queue.getSnapshot(101)).jobs.find((job) => job.id === youtubeJob.id) ?? null;
     }, "done");
 
-    expect(uploadOrder).toEqual(["Локальный урок", "YouTube урок"]);
+    expect(uploadCalls).toEqual([
+      {
+        lessonName: "Локальный урок",
+        sourceUrl: null,
+      },
+      {
+        lessonName: "YouTube урок",
+        sourceUrl: "https://www.youtube.com/watch?v=test",
+      },
+    ]);
     expect(completedLocalJob.createdLesson?.name).toBe("Локальный урок");
     expect(completedYoutubeJob.createdLesson?.name).toBe("YouTube урок");
   });
