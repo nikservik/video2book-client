@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, shell } from "electron";
+import { registerLessonQueueIpcHandlers } from "./ipc/lessons";
 import { registerProjectsIpcHandlers } from "./ipc/projects";
 import { registerSettingsIpcHandlers } from "./ipc/settings";
 import { createApiClient } from "./services/api/apiClient";
@@ -11,6 +12,7 @@ import { electronTokenCipher } from "./services/config/electronTokenCipher";
 import { createLessonQueue } from "./services/queue/lessonQueue";
 import {
   createAudioTranscoder,
+  createFixtureYoutubeDownloader,
   createLessonUploader,
   createLocalMediaInspector,
   createYoutubeDownloader,
@@ -138,6 +140,8 @@ app.whenReady().then(() => {
     platform: process.platform,
     resourcesPath: process.resourcesPath,
   });
+  const fakeYoutubeAudioPath = process.env.VIDEO2BOOK_FAKE_YOUTUBE_AUDIO_PATH;
+
   lessonQueueSingleton = createLessonQueue({
     queueRepository: createQueueRepository({
       statePath: join(app.getPath("userData"), "queue", "state.json"),
@@ -151,10 +155,12 @@ app.whenReady().then(() => {
     audioTranscoder: createAudioTranscoder({
       ffmpegPath: binaryPaths.ffmpegPath,
     }),
-    youtubeDownloader: createYoutubeDownloader({
-      denoPath: binaryPaths.denoPath,
-      ytDlpPath: binaryPaths.ytDlpPath,
-    }),
+    youtubeDownloader: fakeYoutubeAudioPath
+      ? createFixtureYoutubeDownloader(fakeYoutubeAudioPath)
+      : createYoutubeDownloader({
+          denoPath: binaryPaths.denoPath,
+          ytDlpPath: binaryPaths.ytDlpPath,
+        }),
     lessonUploader: createLessonUploader({
       createApiClient: async () => {
         const accessToken = await configStore.getAccessToken();
@@ -176,6 +182,9 @@ app.whenReady().then(() => {
   });
   registerProjectsIpcHandlers({
     configStore,
+  });
+  registerLessonQueueIpcHandlers({
+    lessonQueue: lessonQueueSingleton,
   });
   void lessonQueueSingleton.start();
   createMainWindow();

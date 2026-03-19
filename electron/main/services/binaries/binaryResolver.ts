@@ -13,6 +13,7 @@ export interface BinaryPaths {
 export interface BinaryResolverOptions {
   appIsPackaged?: boolean;
   appPath?: string;
+  cwd?: string;
   platform?: NodeJS.Platform;
   resourcesPath?: string;
 }
@@ -47,7 +48,23 @@ export function resolveBinaryBaseDir(
     );
   }
 
-  return join(options.appPath ?? process.cwd(), "build", BINARY_RESOURCE_DIRECTORY);
+  const candidateBaseDirs = [
+    join(options.cwd ?? process.cwd(), "build", BINARY_RESOURCE_DIRECTORY),
+  ];
+
+  if (options.appPath) {
+    candidateBaseDirs.push(
+      join(options.appPath, "build", BINARY_RESOURCE_DIRECTORY),
+      join(options.appPath, "..", "build", BINARY_RESOURCE_DIRECTORY),
+      join(options.appPath, "..", "..", "build", BINARY_RESOURCE_DIRECTORY),
+    );
+  }
+
+  const existingBaseDir = candidateBaseDirs.find((candidatePath) => {
+    return existsSync(candidatePath);
+  });
+
+  return existingBaseDir ?? candidateBaseDirs[0];
 }
 
 export function resolveBinaryPaths(

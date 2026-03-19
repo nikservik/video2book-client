@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { shallowRef } from "vue";
+import { shallowRef, watch } from "vue";
 import type { PipelineVersionOption } from "../../../types/ui";
 import BaseDialog from "../../ui/BaseDialog.vue";
-import AppIcon from "../../ui/AppIcon.vue";
 import PipelineVersionDropdown from "../PipelineVersionDropdown.vue";
 
-const props = defineProps<{
-  open: boolean;
-  pipelineVersionOptions: PipelineVersionOption[];
-}>();
+const props = withDefaults(
+  defineProps<{
+    open: boolean;
+    pipelineVersionOptions: PipelineVersionOption[];
+    errorMessage?: string | null;
+    submitting?: boolean;
+  }>(),
+  {
+    errorMessage: null,
+    submitting: false,
+  },
+);
 
 const emit = defineEmits<{
   (event: "close"): void;
@@ -28,19 +35,20 @@ const selectedAudioFilename = shallowRef<string | null>(null);
 const pipelineVersionId = shallowRef<number | null>(
   props.pipelineVersionOptions[0]?.id ?? null,
 );
-const isUploading = shallowRef(false);
-const showUploadErrorNotification = shallowRef(false);
+const lessonNameError = shallowRef<string | null>(null);
+const audioFileError = shallowRef<string | null>(null);
+
+function resetForm(): void {
+  lessonName.value = "";
+  audioFile.value = null;
+  selectedAudioFilename.value = null;
+  pipelineVersionId.value = props.pipelineVersionOptions[0]?.id ?? null;
+  lessonNameError.value = null;
+  audioFileError.value = null;
+}
 
 function setPipelineVersionId(value: number | null): void {
   pipelineVersionId.value = value;
-}
-
-function closeUploadErrorNotification(): void {
-  showUploadErrorNotification.value = false;
-}
-
-function reloadPage(): void {
-  window.location.reload();
 }
 
 function handleAudioFileChange(event: Event): void {
@@ -49,27 +57,40 @@ function handleAudioFileChange(event: Event): void {
 
   audioFile.value = selectedFile;
   selectedAudioFilename.value = selectedFile?.name ?? null;
-  showUploadErrorNotification.value = false;
-
-  if (!selectedFile) {
-    isUploading.value = false;
-    return;
-  }
-
-  isUploading.value = true;
-
-  window.setTimeout(() => {
-    isUploading.value = false;
-  }, 600);
+  audioFileError.value = null;
 }
 
 function submit(): void {
+  lessonNameError.value = null;
+  audioFileError.value = null;
+
+  if (lessonName.value.trim().length === 0) {
+    lessonNameError.value = "Введите название урока.";
+  }
+
+  if (!audioFile.value) {
+    audioFileError.value = "Выберите аудио- или видеофайл.";
+  }
+
+  if (lessonNameError.value || audioFileError.value) {
+    return;
+  }
+
   emit("save", {
-    lessonName: lessonName.value,
+    lessonName: lessonName.value.trim(),
     audioFile: audioFile.value,
     pipelineVersionId: pipelineVersionId.value,
   });
 }
+
+watch(
+  () => props.open,
+  (open) => {
+    if (!open) {
+      resetForm();
+    }
+  },
+);
 </script>
 
 <template>
@@ -100,6 +121,12 @@ function submit(): void {
             class="col-start-1 row-start-1 block w-full rounded-md bg-white py-1.5 pr-3 pl-3 text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6 dark:bg-white/5 dark:text-white dark:outline-white/10 dark:placeholder:text-gray-500 dark:focus:outline-indigo-500"
           />
         </div>
+        <p
+          v-if="lessonNameError"
+          class="mt-2 text-sm text-red-600 dark:text-red-400"
+        >
+          {{ lessonNameError }}
+        </p>
       </div>
 
       <div>
@@ -133,13 +160,12 @@ function submit(): void {
             </p>
           </div>
         </label>
-
-        <div
-          v-if="isUploading"
-          class="mt-2 text-sm text-gray-600 dark:text-gray-300"
+        <p
+          v-if="audioFileError"
+          class="mt-2 text-sm text-red-600 dark:text-red-400"
         >
-          Загрузка файла...
-        </div>
+          {{ audioFileError }}
+        </p>
       </div>
 
       <div>
@@ -158,15 +184,25 @@ function submit(): void {
         </div>
       </div>
 
+      <p
+        v-if="props.errorMessage"
+        class="text-sm text-red-600 dark:text-red-400"
+      >
+        {{ props.errorMessage }}
+      </p>
+
       <div class="mt-10 sm:flex sm:flex-row-reverse">
         <button
           type="submit"
+          :disabled="props.submitting"
           class="inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 sm:ml-3 sm:w-auto dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400"
+          :class="{ 'cursor-not-allowed opacity-70': props.submitting }"
         >
-          Сохранить
+          {{ props.submitting ? "Сохраняем..." : "Сохранить" }}
         </button>
         <button
           type="button"
+          :disabled="props.submitting"
           class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring-1 inset-ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
           @click="emit('close')"
         >
@@ -174,64 +210,5 @@ function submit(): void {
         </button>
       </div>
     </form>
-
-    <template #after>
-      <div
-        aria-live="assertive"
-        class="pointer-events-none fixed inset-0 flex items-end px-4 py-6 sm:items-start sm:p-6"
-      >
-        <div class="flex w-full flex-col items-center space-y-4 sm:items-end">
-          <div
-            v-if="showUploadErrorNotification"
-            class="pointer-events-auto w-full max-w-sm translate-y-0 transform rounded-lg bg-white opacity-100 shadow-lg outline-1 outline-black/5 transition duration-300 ease-out sm:translate-x-0 dark:bg-gray-800 dark:-outline-offset-1 dark:outline-white/10"
-          >
-            <div class="p-4">
-              <div class="flex items-start">
-                <div class="shrink-0">
-                  <AppIcon
-                    name="alert-triangle"
-                    class="size-6 text-red-500 dark:text-red-400"
-                  />
-                </div>
-                <div class="ml-3 w-0 flex-1 pt-0.5">
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">
-                    Не удалось загрузить файл
-                  </p>
-                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Попробуйте выбрать файл ещё раз. Если ошибка повторится, обновите страницу и повторите загрузку.
-                  </p>
-                  <div class="mt-3 flex items-center gap-2">
-                    <button
-                      type="button"
-                      class="inline-flex items-center rounded-md bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500"
-                      @click="reloadPage"
-                    >
-                      Обновить страницу
-                    </button>
-                    <button
-                      type="button"
-                      class="inline-flex items-center rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/10"
-                      @click="closeUploadErrorNotification"
-                    >
-                      Закрыть
-                    </button>
-                  </div>
-                </div>
-                <div class="ml-4 flex shrink-0">
-                  <button
-                    type="button"
-                    class="inline-flex rounded-md text-gray-400 hover:text-gray-500 focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600 dark:hover:text-white dark:focus:outline-indigo-500"
-                    @click="closeUploadErrorNotification"
-                  >
-                    <span class="sr-only">Закрыть уведомление</span>
-                    <AppIcon name="close" class="size-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
   </BaseDialog>
 </template>

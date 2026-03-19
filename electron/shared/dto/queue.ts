@@ -1,5 +1,7 @@
 import type { LessonItem } from "../../../src/types/ui";
 
+export const QUEUE_CHANGED_EVENT = "queue:changed";
+
 export type QueueJobKind = "youtube" | "local-file";
 export type QueueJobStatus = "queued" | "running" | "failed" | "done";
 export type QueueJobStage = "download" | "transcode" | "upload" | "sync" | null;
@@ -23,4 +25,29 @@ export interface QueueJobSnapshot {
 
 export interface QueueSnapshot {
   jobs: QueueJobSnapshot[];
+}
+
+export interface EnqueueYoutubeLessonInput {
+  lessonName: string;
+  pipelineVersionId: number | null;
+  projectId: number;
+  sourceUrl: string;
+}
+
+export interface EnqueueYoutubeBatchItemInput {
+  lessonName: string;
+  sourceUrl: string;
+}
+
+export interface EnqueueYoutubeBatchInput {
+  items: EnqueueYoutubeBatchItemInput[];
+  pipelineVersionId: number | null;
+  projectId: number;
+}
+
+export interface EnqueueLocalFileLessonInput {
+  filePath: string;
+  lessonName: string;
+  pipelineVersionId: number | null;
+  projectId: number;
 }

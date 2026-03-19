@@ -5,8 +5,8 @@ import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import YTDlpWrapImport from "yt-dlp-wrap";
 import {
+  createYtDlpCommand,
   getBinaryFilename,
-  resolveBinaryPaths,
   type BinaryPaths,
 } from "./binaryResolver";
 
@@ -46,6 +46,10 @@ export interface PrepareBundledBinariesOptions {
   resolveSourcePaths?: (
     options: Pick<PrepareBundledBinariesOptions, "arch" | "logger" | "platform">,
   ) => Promise<SourceBinaryPaths>;
+  validatePreparedFiles?: (
+    binaryPaths: BinaryPaths,
+    platform: NodeJS.Platform,
+  ) => Promise<boolean>;
   ytDlpVersion?: string;
 }
 
@@ -108,6 +112,32 @@ async function hasPreparedFiles(
   });
 
   return (await Promise.all(checks)).every(Boolean);
+}
+
+function canExecuteBinary(command: string, args: string[]): boolean {
+  const result = spawnSync(command, args, {
+    stdio: "ignore",
+  });
+
+  return result.status === 0 && !result.error;
+}
+
+async function validatePreparedFiles(binaryPaths: BinaryPaths): Promise<boolean> {
+  if (!canExecuteBinary(binaryPaths.ffmpegPath, ["-version"])) {
+    return false;
+  }
+
+  if (!canExecuteBinary(binaryPaths.ffprobePath, ["-version"])) {
+    return false;
+  }
+
+  if (!canExecuteBinary(binaryPaths.denoPath, ["--version"])) {
+    return false;
+  }
+
+  const ytDlpCommand = createYtDlpCommand(binaryPaths, ["--version"]);
+
+  return canExecuteBinary(ytDlpCommand.executablePath, ytDlpCommand.args);
 }
 
 async function copyExecutable(
@@ -258,18 +288,29 @@ export async function prepareBundledBinaries(
   const ytDlpVersion = options.ytDlpVersion ?? YT_DLP_VERSION;
   const manifestPath = join(outputDir, PREPARED_BINARIES_MANIFEST_NAME);
   const expectedManifest = createManifest(platform, arch, ytDlpVersion);
-  const binaryPaths = resolveBinaryPaths({
-    appPath: dirname(dirname(outputDir)),
-    platform,
-  });
+  const binaryPaths: BinaryPaths = {
+    denoPath: join(outputDir, getBinaryFilename("deno", platform)),
+    ffmpegPath: join(outputDir, getBinaryFilename("ffmpeg", platform)),
+    ffprobePath: join(outputDir, getBinaryFilename("ffprobe", platform)),
+    ytDlpPath: join(outputDir, getBinaryFilename("ytDlp", platform)),
+  };
   const currentManifest = await readManifest(manifestPath);
+  const hasCurrentManifest = isCurrentManifest(currentManifest, expectedManifest);
+  const preparedFilesExist = hasCurrentManifest
+    ? await hasPreparedFiles(outputDir, expectedManifest)
+    : false;
+  const preparedFilesAreValid =
+    hasCurrentManifest && preparedFilesExist
+      ? await (options.validatePreparedFiles ?? validatePreparedFiles)(binaryPaths, platform)
+      : false;
 
-  if (
-    isCurrentManifest(currentManifest, expectedManifest) &&
-    (await hasPreparedFiles(outputDir, expectedManifest))
-  ) {
+  if (hasCurrentManifest && preparedFilesExist && preparedFilesAreValid) {
     logger.info(`Bundled binaries are up to date in ${outputDir}.`);
     return binaryPaths;
+  }
+
+  if (hasCurrentManifest && preparedFilesExist && !preparedFilesAreValid) {
+    logger.warn(`Prepared binaries in ${outputDir} are invalid. Rebuilding the bundle.`);
   }
 
   await mkdir(outputDir, { recursive: true });

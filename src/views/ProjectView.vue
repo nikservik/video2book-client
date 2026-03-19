@@ -9,6 +9,8 @@ import type {
 import {
   lessonSortOptionsMock,
 } from "../data/mockUi";
+import { useProjectLessonActions } from "../composables/useProjectLessonActions";
+import { useProjectQueueSnapshot } from "../composables/useProjectQueueSnapshot";
 import { useProjectScreenData } from "../composables/useProjectScreenData";
 import AddLessonFromAudioModal from "../components/project/modals/AddLessonFromAudioModal.vue";
 import AddLessonsListModal from "../components/project/modals/AddLessonsListModal.vue";
@@ -36,9 +38,6 @@ const emit = defineEmits<{
 const route = useRoute();
 const actionsMenuOpen = shallowRef(false);
 const lessonSort = shallowRef<LessonSortValue>("created_at");
-const showCreateLessonModal = shallowRef(false);
-const showAddLessonFromAudioModal = shallowRef(false);
-const showAddLessonsListModal = shallowRef(false);
 
 const projectId = computed(() => {
   const rawProjectId = Array.isArray(route.params.projectId)
@@ -63,6 +62,38 @@ const pipelineVersionOptions = computed(() => {
 
 const parentFolderId = computed(() => {
   return projectScreen.value?.parentFolderId ?? null;
+});
+const { refreshSnapshot } = useProjectQueueSnapshot({
+  enabled: () => props.settingsReady,
+  projectId: () => projectId.value,
+  revision: () => props.settingsRevision,
+});
+const {
+  addLessonFromAudioErrorMessage,
+  addLessonFromAudioSubmitting,
+  addLessonsListErrorMessage,
+  addLessonsListSubmitting,
+  closeAddLessonFromAudioModal,
+  closeAddLessonsListModal,
+  closeCreateLessonModal,
+  createLessonErrorMessage,
+  createLessonSubmitting,
+  enqueueLocalFileLesson,
+  enqueueYoutubeBatch,
+  enqueueYoutubeLesson,
+  openAddLessonFromAudioModal,
+  openAddLessonsListModal,
+  openCreateLessonModal,
+  showAddLessonFromAudioModal,
+  showAddLessonsListModal,
+  showCreateLessonModal,
+} = useProjectLessonActions({
+  projectId: () => projectId.value,
+  onQueueUpdated: async () => {
+    if (projectId.value) {
+      await refreshSnapshot(projectId.value);
+    }
+  },
 });
 
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
@@ -101,17 +132,17 @@ function openSettings(): void {
 
 function handleAddLesson(): void {
   setActionsMenuOpen(false);
-  showCreateLessonModal.value = true;
+  openCreateLessonModal();
 }
 
 function handleAddAudioLesson(): void {
   setActionsMenuOpen(false);
-  showAddLessonFromAudioModal.value = true;
+  openAddLessonFromAudioModal();
 }
 
 function handleAddLessonsList(): void {
   setActionsMenuOpen(false);
-  showAddLessonsListModal.value = true;
+  openAddLessonsListModal();
 }
 
 function toggleActionsMenu(): void {
@@ -126,44 +157,6 @@ function setLessonSort(value: LessonSortValue): void {
   lessonSort.value = value;
 }
 
-function closeCreateLessonModal(): void {
-  showCreateLessonModal.value = false;
-}
-
-function closeAddLessonFromAudioModal(): void {
-  showAddLessonFromAudioModal.value = false;
-}
-
-function closeAddLessonsListModal(): void {
-  showAddLessonsListModal.value = false;
-}
-
-function saveCreateLesson(payload: {
-  lessonName: string;
-  youtubeUrl: string;
-  pipelineVersionId: number | null;
-}): void {
-  window.dispatchEvent(new CustomEvent("video2book:create-lesson", { detail: payload }));
-  closeCreateLessonModal();
-}
-
-function saveLessonFromAudio(payload: {
-  lessonName: string;
-  audioFile: File | null;
-  pipelineVersionId: number | null;
-}): void {
-  window.dispatchEvent(
-    new CustomEvent("video2book:create-audio-lesson", { detail: payload }),
-  );
-  closeAddLessonFromAudioModal();
-}
-
-function saveLessonsList(payload: { lessonsList: string }): void {
-  window.dispatchEvent(
-    new CustomEvent("video2book:create-lessons-list", { detail: payload }),
-  );
-  closeAddLessonsListModal();
-}
 </script>
 
 <template>
@@ -253,21 +246,27 @@ function saveLessonsList(payload: { lessonsList: string }): void {
         :open="showCreateLessonModal"
         :pipeline-version-options="pipelineVersionOptions"
         :duplicate-lesson-warning="null"
+        :error-message="createLessonErrorMessage"
+        :submitting="createLessonSubmitting"
         @close="closeCreateLessonModal"
-        @save="saveCreateLesson"
+        @save="enqueueYoutubeLesson"
       />
 
       <AddLessonFromAudioModal
         :open="showAddLessonFromAudioModal"
         :pipeline-version-options="pipelineVersionOptions"
+        :error-message="addLessonFromAudioErrorMessage"
+        :submitting="addLessonFromAudioSubmitting"
         @close="closeAddLessonFromAudioModal"
-        @save="saveLessonFromAudio"
+        @save="enqueueLocalFileLesson"
       />
 
       <AddLessonsListModal
         :open="showAddLessonsListModal"
+        :error-message="addLessonsListErrorMessage"
+        :submitting="addLessonsListSubmitting"
         @close="closeAddLessonsListModal"
-        @save="saveLessonsList"
+        @save="enqueueYoutubeBatch"
       />
     </div>
   </AppShell>

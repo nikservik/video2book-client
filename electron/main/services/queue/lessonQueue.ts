@@ -248,6 +248,10 @@ export function createLessonQueue(options: LessonQueueOptions): LessonQueue {
     const workspace = await options.workspaceManager.ensure(id);
     const createdAt = nowIso();
     const stage: QueueJobStage = null;
+    const persistedSourceFilePath =
+      input.kind === "local-file"
+        ? await options.workspaceManager.importLocalFile(id, input.sourceFilePath)
+        : null;
     const job: QueueJobSnapshot = {
       id,
       projectId: input.projectId,
@@ -255,7 +259,7 @@ export function createLessonQueue(options: LessonQueueOptions): LessonQueue {
       pipelineVersionId: input.pipelineVersionId ?? null,
       kind: input.kind,
       sourceUrl: input.kind === "youtube" ? input.sourceUrl : null,
-      sourceFilePath: input.kind === "local-file" ? input.sourceFilePath : null,
+      sourceFilePath: persistedSourceFilePath,
       status: "queued",
       stage,
       errorMessage: null,

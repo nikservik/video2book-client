@@ -1,7 +1,7 @@
 import { createWriteStream } from "node:fs";
 import { basename, extname } from "node:path";
 import { openAsBlob } from "node:fs";
-import { stat } from "node:fs/promises";
+import { chmod, copyFile, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import type { LessonItem } from "../../../../src/types/ui";
 import type { Video2BookApiClient } from "../api/apiClient";
@@ -222,6 +222,18 @@ export function createYoutubeDownloader(
         stderrLogPath,
       });
 
+      return outputPath;
+    },
+  };
+}
+
+export function createFixtureYoutubeDownloader(
+  fixtureAudioPath: string,
+): YoutubeDownloader {
+  return {
+    async downloadAudioToMp3(_sourceUrl, outputPath) {
+      await copyFile(fixtureAudioPath, outputPath);
+      await chmod(outputPath, 0o755);
       return outputPath;
     },
   };

@@ -42,6 +42,24 @@ export async function createAudioFixture(
   ]);
 }
 
+export async function createMp3Fixture(
+  ffmpegPath: string,
+  outputPath: string,
+): Promise<void> {
+  await runCommand(ffmpegPath, [
+    "-y",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=880:duration=1",
+    "-codec:a",
+    "libmp3lame",
+    "-q:a",
+    "2",
+    outputPath,
+  ]);
+}
+
 export async function createVideoFixture(
   ffmpegPath: string,
   outputPath: string,

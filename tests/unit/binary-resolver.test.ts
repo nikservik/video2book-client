@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   BINARY_RESOURCE_DIRECTORY,
   createYtDlpCommand,
@@ -6,11 +9,22 @@ import {
   resolveBinaryPaths,
 } from "@electron/main/services/binaries/binaryResolver";
 
+const temporaryDirectories: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    temporaryDirectories.splice(0).map((directory) => {
+      return rm(directory, { recursive: true, force: true });
+    }),
+  );
+});
+
 describe("binary resolver", () => {
   it("resolves build/bin paths during local development", () => {
     expect(
       resolveBinaryPaths({
         appPath: "/workspace/video2book-client",
+        cwd: "/workspace/video2book-client",
         platform: "darwin",
       }),
     ).toEqual({
@@ -18,6 +32,28 @@ describe("binary resolver", () => {
       ffmpegPath: `/workspace/video2book-client/build/${BINARY_RESOURCE_DIRECTORY}/ffmpeg`,
       ffprobePath: `/workspace/video2book-client/build/${BINARY_RESOURCE_DIRECTORY}/ffprobe`,
       ytDlpPath: `/workspace/video2book-client/build/${BINARY_RESOURCE_DIRECTORY}/yt-dlp`,
+    });
+  });
+
+  it("prefers the workspace build/bin when appPath points into dist-electron", async () => {
+    const workspaceRoot = await mkdtemp(join(tmpdir(), "video2book-client-binaries-"));
+    temporaryDirectories.push(workspaceRoot);
+
+    await mkdir(join(workspaceRoot, "build", BINARY_RESOURCE_DIRECTORY), {
+      recursive: true,
+    });
+
+    expect(
+      resolveBinaryPaths({
+        appPath: join(workspaceRoot, "dist-electron", "main"),
+        cwd: workspaceRoot,
+        platform: "darwin",
+      }),
+    ).toEqual({
+      denoPath: join(workspaceRoot, "build", BINARY_RESOURCE_DIRECTORY, "deno"),
+      ffmpegPath: join(workspaceRoot, "build", BINARY_RESOURCE_DIRECTORY, "ffmpeg"),
+      ffprobePath: join(workspaceRoot, "build", BINARY_RESOURCE_DIRECTORY, "ffprobe"),
+      ytDlpPath: join(workspaceRoot, "build", BINARY_RESOURCE_DIRECTORY, "yt-dlp"),
     });
   });
 

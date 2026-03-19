@@ -1,5 +1,5 @@
-import { appendFile, mkdir, rename, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { appendFile, copyFile, mkdir, rename, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import type { QueueJobSnapshot } from "@electron/shared/dto/queue";
 
 export interface JobWorkspacePaths {
@@ -14,6 +14,7 @@ export interface JobWorkspacePaths {
 export interface JobWorkspaceManager {
   appendLog(jobId: string, message: string): Promise<void>;
   ensure(jobId: string): Promise<JobWorkspacePaths>;
+  importLocalFile(jobId: string, sourceFilePath: string): Promise<string>;
   writeMeta(job: QueueJobSnapshot): Promise<void>;
 }
 
@@ -60,6 +61,15 @@ export function createJobWorkspaceManager(
       await mkdir(paths.outputDirectory, { recursive: true });
 
       return paths;
+    },
+
+    async importLocalFile(jobId, sourceFilePath) {
+      const paths = await this.ensure(jobId);
+      const destinationPath = join(paths.inputDirectory, basename(sourceFilePath));
+
+      await copyFile(sourceFilePath, destinationPath);
+
+      return destinationPath;
     },
 
     async writeMeta(job) {

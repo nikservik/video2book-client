@@ -49,6 +49,7 @@ describe("prepareBundledBinaries", () => {
     const downloadYtDlp = vi.fn(async (filePath: string) => {
       await createFakeExecutable(filePath, "yt-dlp");
     });
+    const validatePreparedFiles = vi.fn(async () => true);
 
     const binaryPaths = await prepareBundledBinaries({
       outputDir: outputDirectory,
@@ -63,6 +64,7 @@ describe("prepareBundledBinaries", () => {
         };
       },
       downloadYtDlp,
+      validatePreparedFiles,
     });
 
     expect(await readFile(binaryPaths.denoPath, "utf8")).toBe("deno");
@@ -114,6 +116,7 @@ describe("prepareBundledBinaries", () => {
     const downloadYtDlp = vi.fn(async (filePath: string) => {
       await createFakeExecutable(filePath, "yt-dlp");
     });
+    const validatePreparedFiles = vi.fn(async () => true);
 
     await prepareBundledBinaries({
       outputDir: outputDirectory,
@@ -122,6 +125,7 @@ describe("prepareBundledBinaries", () => {
       logger: silentLogger,
       resolveSourcePaths,
       downloadYtDlp,
+      validatePreparedFiles,
     });
 
     await prepareBundledBinaries({
@@ -131,9 +135,11 @@ describe("prepareBundledBinaries", () => {
       logger: silentLogger,
       resolveSourcePaths,
       downloadYtDlp,
+      validatePreparedFiles,
     });
 
     expect(resolveSourcePaths).toHaveBeenCalledOnce();
     expect(downloadYtDlp).toHaveBeenCalledOnce();
+    expect(validatePreparedFiles).toHaveBeenCalledOnce();
   });
 });
