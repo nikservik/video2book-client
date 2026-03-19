@@ -178,6 +178,32 @@ test("shows projects list and project screen", async () => {
   }
 });
 
+test("quits the whole app when the main window is closed", async () => {
+  const apiServer = await startStatefulApiServer(serverPort);
+  const { app, firstWindow, userDataPath } = await launchApp(apiServer);
+  let appClosed = false;
+
+  try {
+    await expect(firstWindow.getByText("Курсы")).toBeVisible();
+
+    const appClosedPromise = app.waitForEvent("close");
+
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.close();
+    });
+
+    await appClosedPromise;
+    appClosed = true;
+  } finally {
+    if (!appClosed) {
+      await app.close();
+    }
+
+    await apiServer.close();
+    await rm(userDataPath, { recursive: true, force: true });
+  }
+});
+
 test("returns to the projects page with the current folder reopened", async () => {
   const apiServer = await startStatefulApiServer(serverPort);
   const { app, firstWindow, userDataPath } = await launchApp(apiServer);
