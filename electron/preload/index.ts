@@ -1,4 +1,4 @@
-import { contextBridge } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
 import type { ElectronApi } from "../shared/dto/ipc";
 import { APP_NAME } from "../shared/dto/ipc";
 
@@ -16,6 +16,22 @@ const api: ElectronApi = {
         node: process.versions.node,
       },
     };
+  },
+  settings: {
+    async get() {
+      return ipcRenderer.invoke("settings:get");
+    },
+    async saveToken(rawInput) {
+      return ipcRenderer.invoke("settings:saveToken", rawInput);
+    },
+  },
+  projects: {
+    async list() {
+      return ipcRenderer.invoke("projects:list");
+    },
+    async getLessons(projectId) {
+      return ipcRenderer.invoke("projects:getLessons", projectId);
+    },
   },
 };
 

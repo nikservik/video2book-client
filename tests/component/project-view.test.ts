@@ -22,6 +22,7 @@ describe("ProjectView", () => {
   it("restores the parent folder in the projects breadcrumb link", async () => {
     const wrapper = await mountProjectView("/projects/201");
 
+    expect(window.electronAPI.projects.getLessons).toHaveBeenCalledWith(201);
     expect(wrapper.text()).toContain("Японский метаболизм");
     expect(wrapper.text()).toContain("Добавить урок из аудио/видео");
 

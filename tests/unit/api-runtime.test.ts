@@ -23,4 +23,13 @@ describe("resolveApiBaseUrl", () => {
       PRODUCTION_API_BASE_URL,
     );
   });
+
+  it("allows an explicit override for local integration tests", () => {
+    expect(
+      resolveApiBaseUrl({
+        overrideBaseUrl: "http://127.0.0.1:4010",
+        nodeEnv: "development",
+      }),
+    ).toBe("http://127.0.0.1:4010");
+  });
 });

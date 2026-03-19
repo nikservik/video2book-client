@@ -23,6 +23,7 @@ describe("ProjectsView", () => {
     const wrapper = await mountProjectsView("/projects");
 
     expect(wrapper.text()).toContain("Добавление уроков в проекты");
+    expect(window.electronAPI.projects.list).toHaveBeenCalled();
     expect(wrapper.text()).toContain("История дизайна");
     expect(wrapper.text()).toContain("Баухаус");
     expect(wrapper.text()).toContain("Модернизм");

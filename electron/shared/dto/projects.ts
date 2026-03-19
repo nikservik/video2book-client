@@ -9,6 +9,7 @@ export interface ProjectsListData {
 }
 
 export interface ProjectScreenData {
+  parentFolderId: number;
   project: ProjectDetails;
   pipelineVersions: PipelineVersionOption[];
 }

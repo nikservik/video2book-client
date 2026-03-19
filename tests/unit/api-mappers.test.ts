@@ -106,6 +106,7 @@ describe("API mappers", () => {
 
     const screenData = mapProjectLessonsResponse(response);
 
+    expect(screenData.parentFolderId).toBe(12);
     expect(screenData.pipelineVersions[0]).toEqual({
       id: 7,
       label: "Базовый шаблон • v3",

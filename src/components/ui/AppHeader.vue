@@ -57,6 +57,7 @@ const { theme, setLightTheme, setDarkTheme } = useTheme();
 
           <button
             type="button"
+            aria-label="Открыть настройки"
             class="relative rounded-full p-1 text-gray-500 hover:text-gray-700 focus:outline-2 focus:outline-offset-2 focus:outline-indigo-600 dark:text-gray-300 dark:hover:text-white dark:focus:outline-indigo-500"
             @click="emit('settings')"
           >

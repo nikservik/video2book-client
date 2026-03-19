@@ -22,6 +22,7 @@ describe("ProjectsView in browser mode", () => {
   it("renders project folders in a real browser environment", async () => {
     const wrapper = await mountProjectsView("/projects");
 
+    expect(window.electronAPI.projects.list).toHaveBeenCalled();
     expect(wrapper.text()).toContain("История дизайна");
     expect(wrapper.text()).toContain("Баухаус");
   });

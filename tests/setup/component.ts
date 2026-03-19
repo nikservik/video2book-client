@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, vi } from "vitest";
+import { createProjectScreenDataMock, projectsListDataMock } from "@tests/fixtures/ui-data";
 
 beforeEach(() => {
   window.electronAPI = {
@@ -12,6 +13,20 @@ beforeEach(() => {
         node: "22.0.0",
       },
     }),
+    settings: {
+      get: vi.fn().mockResolvedValue({
+        hasToken: true,
+      }),
+      saveToken: vi.fn().mockResolvedValue({
+        hasToken: true,
+      }),
+    },
+    projects: {
+      list: vi.fn().mockResolvedValue(projectsListDataMock),
+      getLessons: vi.fn().mockImplementation(async (projectId: number) => {
+        return createProjectScreenDataMock(projectId);
+      }),
+    },
   };
 });
 

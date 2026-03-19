@@ -1,11 +1,21 @@
 import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, shell } from "electron";
+import { registerProjectsIpcHandlers } from "./ipc/projects";
+import { registerSettingsIpcHandlers } from "./ipc/settings";
+import { createConfigStore } from "./services/config/configStore";
+import { electronTokenCipher } from "./services/config/electronTokenCipher";
 import { APP_NAME } from "../shared/dto/ipc";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const forcedUserDataPath = process.env.VIDEO2BOOK_USER_DATA_PATH;
+
+if (forcedUserDataPath) {
+  app.setPath("userData", forcedUserDataPath);
+}
 
 function resolveProjectPath(...segments: string[]): string {
   return resolve(__dirname, "..", "..", ...segments);
@@ -105,6 +115,18 @@ function createMainWindow(): BrowserWindow {
 app.setName(APP_NAME);
 
 app.whenReady().then(() => {
+  const configStore = createConfigStore({
+    configPath: join(app.getPath("userData"), "config.json"),
+    tokenCipher: electronTokenCipher,
+    logger: process.env.NODE_ENV === "production" ? undefined : console,
+  });
+
+  registerSettingsIpcHandlers({
+    configStore,
+  });
+  registerProjectsIpcHandlers({
+    configStore,
+  });
   createMainWindow();
 
   app.on("activate", () => {

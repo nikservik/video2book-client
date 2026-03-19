@@ -117,6 +117,7 @@ export function mapProjectLessonsResponse(
   response: ApiProjectLessonsResponse,
 ): ProjectScreenData {
   return {
+    parentFolderId: response.data.project.folder_id,
     project: mapProjectDetails(response.data.project, response.data.lessons),
     pipelineVersions: response.data.pipeline_versions.map(mapPipelineVersion),
   };
