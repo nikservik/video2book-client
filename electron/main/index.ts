@@ -4,12 +4,24 @@ import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, shell } from "electron";
 import { registerProjectsIpcHandlers } from "./ipc/projects";
 import { registerSettingsIpcHandlers } from "./ipc/settings";
+import { createApiClient } from "./services/api/apiClient";
+import { resolveBinaryPaths } from "./services/binaries/binaryResolver";
 import { createConfigStore } from "./services/config/configStore";
 import { electronTokenCipher } from "./services/config/electronTokenCipher";
+import { createLessonQueue } from "./services/queue/lessonQueue";
+import {
+  createAudioTranscoder,
+  createLessonUploader,
+  createLocalMediaInspector,
+  createYoutubeDownloader,
+} from "./services/queue/media";
+import { createQueueRepository } from "./services/queue/repository";
+import { createJobWorkspaceManager } from "./services/queue/workspace";
 import { APP_NAME } from "../shared/dto/ipc";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+let lessonQueueSingleton: ReturnType<typeof createLessonQueue> | null = null;
 
 const forcedUserDataPath = process.env.VIDEO2BOOK_USER_DATA_PATH;
 
@@ -120,6 +132,44 @@ app.whenReady().then(() => {
     tokenCipher: electronTokenCipher,
     logger: process.env.NODE_ENV === "production" ? undefined : console,
   });
+  const binaryPaths = resolveBinaryPaths({
+    appIsPackaged: app.isPackaged,
+    appPath: app.getAppPath(),
+    platform: process.platform,
+    resourcesPath: process.resourcesPath,
+  });
+  lessonQueueSingleton = createLessonQueue({
+    queueRepository: createQueueRepository({
+      statePath: join(app.getPath("userData"), "queue", "state.json"),
+    }),
+    workspaceManager: createJobWorkspaceManager({
+      jobsRootDir: join(app.getPath("userData"), "queue", "jobs"),
+    }),
+    localMediaInspector: createLocalMediaInspector({
+      ffprobePath: binaryPaths.ffprobePath,
+    }),
+    audioTranscoder: createAudioTranscoder({
+      ffmpegPath: binaryPaths.ffmpegPath,
+    }),
+    youtubeDownloader: createYoutubeDownloader({
+      denoPath: binaryPaths.denoPath,
+      ytDlpPath: binaryPaths.ytDlpPath,
+    }),
+    lessonUploader: createLessonUploader({
+      createApiClient: async () => {
+        const accessToken = await configStore.getAccessToken();
+
+        if (!accessToken) {
+          throw new Error("Введите токен доступа в настройках.");
+        }
+
+        return createApiClient({
+          accessToken,
+        });
+      },
+    }),
+    logger: process.env.NODE_ENV === "production" ? undefined : console,
+  });
 
   registerSettingsIpcHandlers({
     configStore,
@@ -127,6 +177,7 @@ app.whenReady().then(() => {
   registerProjectsIpcHandlers({
     configStore,
   });
+  void lessonQueueSingleton.start();
   createMainWindow();
 
   app.on("activate", () => {
