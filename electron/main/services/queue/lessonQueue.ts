@@ -74,6 +74,16 @@ export function createLessonQueue(options: LessonQueueOptions): LessonQueue {
     events.emit("changed", await options.queueRepository.getSnapshot());
   }
 
+  async function cleanupCompletedArtifacts(jobId: string): Promise<void> {
+    try {
+      await options.workspaceManager.cleanupCompletedArtifacts(jobId);
+    } catch (error) {
+      logger.warn(
+        `Failed to cleanup completed job ${jobId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   async function persistJob(job: QueueJobSnapshot): Promise<QueueJobSnapshot> {
     await options.workspaceManager.writeMeta(job);
     await notifyChanged();
@@ -209,6 +219,8 @@ export function createLessonQueue(options: LessonQueueOptions): LessonQueue {
         errorMessage: null,
         updatedAt: nowIso(),
       }));
+
+      await cleanupCompletedArtifacts(job.id);
     } catch (error) {
       await failJob(job, error);
     }
@@ -327,6 +339,16 @@ export function createLessonQueue(options: LessonQueueOptions): LessonQueue {
       started = true;
 
       const recoveredJobs = await options.queueRepository.markRunningJobsQueued();
+      const snapshot = await options.queueRepository.getSnapshot();
+      const activeJobIds = snapshot.jobs.map((job) => job.id);
+
+      await options.workspaceManager.cleanupOrphanedWorkspaces(activeJobIds);
+
+      await Promise.all(
+        snapshot.jobs
+          .filter((job) => job.status === "done")
+          .map((job) => cleanupCompletedArtifacts(job.id)),
+      );
 
       if (recoveredJobs.length > 0) {
         logger.warn(

@@ -1,6 +1,10 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { QueueJobSnapshot, QueueSnapshot } from "@electron/shared/dto/queue";
+import type {
+  QueueJobSnapshot,
+  QueueJobStage,
+  QueueSnapshot,
+} from "@electron/shared/dto/queue";
 
 interface QueueState {
   jobs: QueueJobSnapshot[];
@@ -125,9 +129,15 @@ export function createQueueRepository(
             return job;
           }
 
+          const recoveredStage: QueueJobStage =
+            job.createdLesson !== null && job.stage === "sync"
+              ? "sync"
+              : null;
           const recoveredJob = {
             ...job,
             status: "queued" as const,
+            stage: recoveredStage,
+            errorMessage: null,
             updatedAt: now,
           };
 

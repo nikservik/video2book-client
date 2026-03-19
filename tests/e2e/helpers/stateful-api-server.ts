@@ -64,6 +64,13 @@ export interface StatefulApiServer {
 }
 
 export interface StartStatefulApiServerOptions {
+  createLessonFailuresByName?: Record<
+    string,
+    {
+      message: string;
+      statusCode: number;
+    }
+  >;
   postResponseDelayMs?: number;
 }
 
@@ -333,6 +340,18 @@ export async function startStatefulApiServer(
 
       const contentType = request.headers["content-type"] ?? "";
       const fields = parseMultipartFieldValues(await readRequestBody(request), contentType);
+      const lessonName = fields.name?.trim() || "";
+      const configuredFailure = lessonName
+        ? options.createLessonFailuresByName?.[lessonName]
+        : undefined;
+
+      if (configuredFailure) {
+        sendJson(response, configuredFailure.statusCode, {
+          message: configuredFailure.message,
+        });
+        return;
+      }
+
       const lessonId = state.nextLessonId++;
       const runId = state.nextRunId++;
       const pipelineVersionId =
@@ -342,7 +361,7 @@ export async function startStatefulApiServer(
       const lesson: LessonRecord = {
         id: lessonId,
         project_id: projectId,
-        name: fields.name?.trim() || `Новый урок ${lessonId}`,
+        name: lessonName || `Новый урок ${lessonId}`,
         source_filename: null,
         source_url: null,
         audio_duration_seconds: null,

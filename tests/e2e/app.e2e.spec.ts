@@ -106,7 +106,7 @@ async function waitForQueueJobStatus(
       return job;
     }
 
-    if (job?.status === "failed") {
+    if (job?.status === "failed" && expectedStatus !== "failed") {
       throw new Error(
         `Queue job ${jobId} failed: ${job.errorMessage ?? "unknown error"}.`,
       );
@@ -302,6 +302,45 @@ test("enqueues a local audio lesson from the audio/video modal", async () => {
 
     await waitForQueueJobStatus(userDataPath, queueJob.id, "done");
     await waitForProjectLessonsCount(apiServer, 101, 3);
+  } finally {
+    await app.close();
+    await apiServer.close();
+    await rm(userDataPath, { recursive: true, force: true });
+  }
+});
+
+test("keeps a failed placeholder lesson visible when the server rejects upload", async () => {
+  const apiServer = await startStatefulApiServer(serverPort, {
+    createLessonFailuresByName: {
+      "Урок с ошибкой": {
+        statusCode: 422,
+        message: "Сервер отклонил урок. Проверьте название и параметры.",
+      },
+    },
+  });
+  const { app, firstWindow, userDataPath } = await launchApp(apiServer);
+
+  try {
+    await clickProject(firstWindow);
+
+    await firstWindow.getByRole("button", { name: "Добавить урок", exact: true }).click();
+    const dialog = firstWindow.getByRole("dialog");
+
+    await dialog.getByLabel("Название урока").fill("Урок с ошибкой");
+    await dialog.getByLabel("Ссылка на YouTube").fill("https://youtu.be/rejected-lesson");
+    await dialog.getByRole("button", { name: "Сохранить" }).click();
+
+    const queueJob = await waitForQueueJob(userDataPath, (job) => {
+      return job.lessonName === "Урок с ошибкой";
+    });
+    const failedJob = await waitForQueueJobStatus(userDataPath, queueJob.id, "failed");
+
+    expect(failedJob.errorMessage).toBe("Сервер отклонил урок. Проверьте название и параметры.");
+    expect(apiServer.state.projects[101]?.lessons.length).toBe(2);
+    await expect(firstWindow.getByText("Урок с ошибкой")).toBeVisible();
+    await expect(
+      firstWindow.getByText("Сервер отклонил урок. Проверьте название и параметры."),
+    ).toBeVisible();
   } finally {
     await app.close();
     await apiServer.close();

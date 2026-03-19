@@ -4,7 +4,7 @@ import { openAsBlob } from "node:fs";
 import { chmod, copyFile, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import type { LessonItem } from "../../../../src/types/ui";
-import type { Video2BookApiClient } from "../api/apiClient";
+import { ApiClientError, type Video2BookApiClient } from "../api/apiClient";
 import { mapCreatedLessonResponse } from "../api/mappers";
 import {
   createYtDlpCommand,
@@ -76,6 +76,51 @@ export interface CreateLessonUploaderOptions {
   createApiClient: () => Promise<Video2BookApiClient>;
 }
 
+function mapCommandLaunchError(commandPath: string, error: NodeJS.ErrnoException): Error {
+  const commandName = basename(commandPath);
+
+  if (error.code === "ENOENT" || error.code === "ENOEXEC") {
+    return new Error(`Не удалось запустить ${commandName}. Перезапустите приложение.`);
+  }
+
+  return error;
+}
+
+export function mapLessonUploadErrorMessage(error: unknown): string {
+  if (error instanceof ApiClientError) {
+    if (error.status === 401) {
+      return "Текущий токен больше не подходит. Откройте настройки и введите новый.";
+    }
+
+    if (error.status === 404) {
+      return "Проект не найден или больше недоступен.";
+    }
+
+    if (error.status === 422) {
+      const errorPayload =
+        typeof error.body === "object" && error.body !== null
+          ? (error.body as { message?: unknown })
+          : null;
+      const payloadMessage =
+        typeof errorPayload?.message === "string" ? errorPayload.message : null;
+
+      return payloadMessage ?? "Сервер отклонил урок. Проверьте название и параметры.";
+    }
+
+    return "Не удалось загрузить урок на сервер.";
+  }
+
+  if (error instanceof TypeError) {
+    return "Не удалось соединиться с сервером. Проверьте подключение и повторите попытку.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Не удалось загрузить урок на сервер.";
+}
+
 async function runCommand(options: {
   args: string[];
   command: string;
@@ -106,7 +151,7 @@ async function runCommand(options: {
     });
     child.on("error", (error) => {
       logStream.end();
-      reject(error);
+      reject(mapCommandLaunchError(options.command, error));
     });
     child.on("close", (exitCode) => {
       logStream.end();
@@ -244,19 +289,23 @@ export function createLessonUploader(
 ): LessonUploader {
   return {
     async uploadAudio(input) {
-      const fileBlob = await openAsBlob(input.filePath, {
-        type: guessAudioMimeType(input.filePath),
-      });
-      const apiClient = await options.createApiClient();
-      const response = await apiClient.createProjectLessonFromAudio({
-        projectId: input.projectId,
-        name: input.lessonName,
-        file: fileBlob,
-        filename: basename(input.filePath),
-        pipelineVersionId: input.pipelineVersionId,
-      });
+      try {
+        const fileBlob = await openAsBlob(input.filePath, {
+          type: guessAudioMimeType(input.filePath),
+        });
+        const apiClient = await options.createApiClient();
+        const response = await apiClient.createProjectLessonFromAudio({
+          projectId: input.projectId,
+          name: input.lessonName,
+          file: fileBlob,
+          filename: basename(input.filePath),
+          pipelineVersionId: input.pipelineVersionId,
+        });
 
-      return mapCreatedLessonResponse(response);
+        return mapCreatedLessonResponse(response);
+      } catch (error) {
+        throw new Error(mapLessonUploadErrorMessage(error));
+      }
     },
   };
 }

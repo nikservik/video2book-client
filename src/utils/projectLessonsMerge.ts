@@ -35,7 +35,7 @@ function mapQueueAudioStatus(job: QueueJobSnapshot): LessonAudioStatus {
 
 function mapQueueStatusLabel(job: QueueJobSnapshot): string {
   if (job.status === "failed") {
-    return "Ошибка обработки";
+    return job.errorMessage ?? "Ошибка обработки";
   }
 
   if (job.status === "queued") {

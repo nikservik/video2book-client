@@ -1,4 +1,4 @@
-import { appendFile, copyFile, mkdir, rename, writeFile } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import type { QueueJobSnapshot } from "@electron/shared/dto/queue";
 
@@ -13,6 +13,8 @@ export interface JobWorkspacePaths {
 
 export interface JobWorkspaceManager {
   appendLog(jobId: string, message: string): Promise<void>;
+  cleanupCompletedArtifacts(jobId: string): Promise<void>;
+  cleanupOrphanedWorkspaces(activeJobIds: string[]): Promise<void>;
   ensure(jobId: string): Promise<JobWorkspacePaths>;
   importLocalFile(jobId: string, sourceFilePath: string): Promise<string>;
   writeMeta(job: QueueJobSnapshot): Promise<void>;
@@ -52,6 +54,36 @@ export function createJobWorkspaceManager(
       const paths = await this.ensure(jobId);
 
       await appendFile(paths.stderrLogPath, `${message}\n`, "utf8");
+    },
+
+    async cleanupCompletedArtifacts(jobId) {
+      const paths = getPaths(jobId);
+
+      await Promise.all([
+        rm(paths.inputDirectory, { recursive: true, force: true }),
+        rm(paths.outputDirectory, { recursive: true, force: true }),
+        rm(paths.stderrLogPath, { force: true }),
+      ]);
+    },
+
+    async cleanupOrphanedWorkspaces(activeJobIds) {
+      await mkdir(options.jobsRootDir, { recursive: true });
+
+      const activeJobIdsSet = new Set(activeJobIds);
+      const entries = await readdir(options.jobsRootDir, {
+        withFileTypes: true,
+      });
+
+      await Promise.all(
+        entries
+          .filter((entry) => entry.isDirectory() && !activeJobIdsSet.has(entry.name))
+          .map((entry) => {
+            return rm(join(options.jobsRootDir, entry.name), {
+              recursive: true,
+              force: true,
+            });
+          }),
+      );
     },
 
     async ensure(jobId) {

@@ -1,15 +1,17 @@
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LessonItem } from "../../src/types/ui";
 import type { QueueJobSnapshot } from "@electron/shared/dto/queue";
+import { ApiClientError } from "@electron/main/services/api/apiClient";
 import { resolveSourceBinaryPaths } from "@electron/main/services/binaries/prepareBinaries";
 import { createLessonQueue } from "@electron/main/services/queue/lessonQueue";
 import {
   createAudioTranscoder,
   createLocalMediaInspector,
+  mapLessonUploadErrorMessage,
 } from "@electron/main/services/queue/media";
 import { createQueueRepository } from "@electron/main/services/queue/repository";
 import { createJobWorkspaceManager } from "@electron/main/services/queue/workspace";
@@ -192,6 +194,72 @@ describe("lesson queue", () => {
     expect(completedJob.createdLesson?.id).toBe(77);
   });
 
+  it("marks upload failures as failed with a user-facing message", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "video2book-client-queue-"));
+    temporaryDirectories.push(directory);
+
+    const localAudioPath = join(directory, "local.mp3");
+
+    await writeFile(localAudioPath, "local-audio", "utf8");
+
+    const queue = createLessonQueue({
+      queueRepository: createQueueRepository({
+        statePath: join(directory, "queue", "state.json"),
+      }),
+      workspaceManager: createJobWorkspaceManager({
+        jobsRootDir: join(directory, "queue", "jobs"),
+      }),
+      localMediaInspector: {
+        inspect: vi.fn(async () => {
+          return {
+            canUploadDirectly: true,
+            extension: ".mp3",
+            hasAudio: true,
+            hasVideo: false,
+            sizeBytes: 11,
+          };
+        }),
+      },
+      audioTranscoder: {
+        transcodeToMp3: vi.fn(async (_inputPath, outputPath) => outputPath),
+      },
+      youtubeDownloader: {
+        downloadAudioToMp3: vi.fn(),
+      },
+      lessonUploader: {
+        uploadAudio: vi.fn(async () => {
+          throw new Error(
+            mapLessonUploadErrorMessage(
+              new ApiClientError("Upload rejected.", {
+                status: 422,
+                body: {
+                  message: "Сервер отклонил урок. Проверьте название и параметры.",
+                },
+              }),
+            ),
+          );
+        }),
+      },
+      logger: silentLogger,
+    });
+
+    await queue.start();
+
+    const job = await queue.enqueueLocalFile({
+      filePath: localAudioPath,
+      lessonName: "Урок с ошибкой",
+      projectId: 101,
+    });
+
+    const failedJob = await waitForJobStatus(async () => {
+      return (await queue.getSnapshot(101)).jobs.find((candidate) => candidate.id === job.id) ?? null;
+    }, "failed");
+
+    expect(failedJob.errorMessage).toBe(
+      "Сервер отклонил урок. Проверьте название и параметры.",
+    );
+  });
+
   it("transcodes local video before upload when direct upload is not possible", async () => {
     const directory = await mkdtemp(join(tmpdir(), "video2book-client-queue-"));
     temporaryDirectories.push(directory);
@@ -201,6 +269,7 @@ describe("lesson queue", () => {
     });
     const videoFixturePath = join(directory, "local.mp4");
     const uploadedFiles: string[] = [];
+    const uploadedFileSizes: number[] = [];
 
     await createVideoFixture(sourceBinaryPaths.ffmpegPath, videoFixturePath);
 
@@ -223,6 +292,7 @@ describe("lesson queue", () => {
       lessonUploader: {
         uploadAudio: vi.fn(async ({ filePath, lessonName }) => {
           uploadedFiles.push(filePath);
+          uploadedFileSizes.push((await stat(filePath)).size);
           return createLesson(1, lessonName);
         }),
       },
@@ -242,8 +312,78 @@ describe("lesson queue", () => {
     }, "done");
 
     expect(uploadedFiles).toHaveLength(1);
+    expect(uploadedFileSizes).toHaveLength(1);
     expect(uploadedFiles[0]).toMatch(/audio\.mp3$/);
-    expect((await stat(uploadedFiles[0]!)).size).toBeGreaterThan(0);
+    expect(uploadedFileSizes[0]).toBeGreaterThan(0);
     expect(completedJob.createdLesson?.name).toBe("Видео урок");
+  });
+
+  it("cleans transient artifacts for completed jobs and removes orphaned workspaces on startup", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "video2book-client-queue-"));
+    temporaryDirectories.push(directory);
+
+    const queueRepository = createQueueRepository({
+      statePath: join(directory, "queue", "state.json"),
+    });
+    const workspaceManager = createJobWorkspaceManager({
+      jobsRootDir: join(directory, "queue", "jobs"),
+    });
+    const jobId = "done-job";
+    const orphanJobId = "orphan-job";
+    const workspace = await workspaceManager.ensure(jobId);
+    const orphanWorkspace = await workspaceManager.ensure(orphanJobId);
+    const createdAt = new Date().toISOString();
+    const completedJob: QueueJobSnapshot = {
+      id: jobId,
+      projectId: 101,
+      lessonName: "Готовый урок",
+      pipelineVersionId: null,
+      kind: "youtube",
+      sourceUrl: "https://www.youtube.com/watch?v=test",
+      sourceFilePath: null,
+      status: "done",
+      stage: null,
+      errorMessage: null,
+      createdAt,
+      updatedAt: createdAt,
+      workspaceDir: workspace.workspaceDir,
+      createdLesson: createLesson(77, "Готовый урок"),
+    };
+
+    await queueRepository.createJob(completedJob);
+    await workspaceManager.writeMeta(completedJob);
+    await writeFile(join(workspace.inputDirectory, "source.mp3"), "input", "utf8");
+    await writeFile(join(workspace.outputDirectory, "audio.mp3"), "output", "utf8");
+    await writeFile(workspace.stderrLogPath, "stderr", "utf8");
+    await writeFile(join(orphanWorkspace.inputDirectory, "orphan.txt"), "orphan", "utf8");
+
+    const queue = createLessonQueue({
+      queueRepository,
+      workspaceManager,
+      localMediaInspector: {
+        inspect: vi.fn(),
+      },
+      audioTranscoder: {
+        transcodeToMp3: vi.fn(),
+      },
+      youtubeDownloader: {
+        downloadAudioToMp3: vi.fn(),
+      },
+      lessonUploader: {
+        uploadAudio: vi.fn(),
+      },
+      logger: silentLogger,
+    });
+
+    await queue.start();
+
+    await expect(access(join(workspace.inputDirectory, "source.mp3"))).rejects.toThrow();
+    await expect(access(join(workspace.outputDirectory, "audio.mp3"))).rejects.toThrow();
+    await expect(access(workspace.stderrLogPath)).rejects.toThrow();
+    await expect(access(orphanWorkspace.workspaceDir)).rejects.toThrow();
+
+    const workspaceEntries = await readdir(workspace.workspaceDir);
+
+    expect(workspaceEntries).toEqual(["meta.json"]);
   });
 });
